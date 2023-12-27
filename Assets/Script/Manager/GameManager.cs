@@ -15,6 +15,8 @@ public class GameManager : MonoBehaviour
 
     private int turnTrueHavetoPut = 9;
     private int turnFalseHavetoPut = 9;
+    public int totalTruePiece = 0;
+    public int totalFalsePiece = 0;    
 
     private void Awake()
     {
@@ -27,8 +29,22 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         BoardManager.instance.OnPutPiece += GameManager_OnPutPiece;
+        BoardManager.instance.OnDeletePieceEnd += GameManager_OnDeletePieceEnd;
+        BoardManager.instance.OnMoveEnd += GameManager_OnMoveEnd;
 
         state = EGameState.Ready;
+    }
+
+    private void GameManager_OnMoveEnd(object sender, System.EventArgs e)
+    {
+        ChangeTurn();
+        BoardManager.instance.moveState = BoardManager.MoveState.BeforePick;
+    }
+
+    private void GameManager_OnDeletePieceEnd(object sender, System.EventArgs e)
+    {
+        ChangeTurn();
+        SetState(EGameState.Putting);
     }
 
     private void Update()
@@ -45,6 +61,7 @@ public class GameManager : MonoBehaviour
                 Update_Putting();
                 break;
             case EGameState.Move:
+                
                 break;
             case EGameState.Delete:
                 break;
@@ -70,7 +87,10 @@ public class GameManager : MonoBehaviour
     public void Update_Putting()
     {
         if(!CanPutDown())
+        {
             state = EGameState.Move;
+            BoardManager.instance.moveState = BoardManager.MoveState.BeforePick;
+        }
     }
 
     public bool CanPutDown()
@@ -84,6 +104,15 @@ public class GameManager : MonoBehaviour
         else turnFalseHavetoPut--;
 
         Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
+    }
+
+    public void SetState(EGameState state)
+    {
+        this.state = state;
+    }
+
+    public void ChangeTurn()
+    {
         turn = !turn;
     }
 }

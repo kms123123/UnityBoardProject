@@ -8,11 +8,6 @@ public class Node : MonoBehaviour
     public float x, y;
     public Piece currentPiece;
 
-    private void Awake()
-    {
-        linkedNodes = new List<Node>();
-    }
-
     private void Start()
     {
         BoardManager.instance.gameBoard.Add(this);
