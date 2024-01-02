@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,8 +16,10 @@ public class GameManager : MonoBehaviour
 
     private int turnTrueHavetoPut = 9;
     private int turnFalseHavetoPut = 9;
-    public int totalTruePiece = 0;
-    public int totalFalsePiece = 0;    
+    private int totalTruePiece = 0;
+    private int totalFalsePiece = 0;
+    private int turnTrue3PiecesMoves = 0;
+    private int turnFalse3PiecesMoves = 0;
 
     private void Awake()
     {
@@ -37,14 +40,36 @@ public class GameManager : MonoBehaviour
 
     private void GameManager_OnMoveEnd(object sender, System.EventArgs e)
     {
-        ChangeTurn();
-        BoardManager.instance.moveState = BoardManager.MoveState.BeforePick;
+        //Move가 끝날 시 3피스 상태였다면, 움직임 횟수 추가
+        if (turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves++;
+        else if (!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves++;
+
+        if (!IsGameOver())
+        {
+            ChangeTurn();
+            BoardManager.instance.moveState = BoardManager.MoveState.BeforePick;
+        }
+        else
+        {
+            Debug.Log("GameOver!");
+        }
     }
 
-    private void GameManager_OnDeletePieceEnd(object sender, System.EventArgs e)
+    private void GameManager_OnDeletePieceEnd(object sender, bool turn)
     {
-        ChangeTurn();
-        SetState(EGameState.Putting);
+        if (!IsGameOver())
+        {
+            //말 개수 감소
+            if (turn) totalFalsePiece--;
+            else totalTruePiece--;
+
+            ChangeTurn();
+            SetState(EGameState.Putting);
+        }
+        else
+        {
+            Debug.Log("GameOver!");
+        }
     }
 
     private void Update()
@@ -100,10 +125,65 @@ public class GameManager : MonoBehaviour
 
     private void GameManager_OnPutPiece(object sender, System.EventArgs e)
     {
-        if (turn) turnTrueHavetoPut--;
-        else turnFalseHavetoPut--;
+        if (turn)
+        {
+            turnTrueHavetoPut--;
+            totalTruePiece++;
+        }
+        else
+        {
+            turnFalseHavetoPut--;
+            totalFalsePiece++;
+        }
 
         Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
+    }
+
+    private bool IsTurnTrueHas3Pieces()
+    {
+        return totalTruePiece == 3;
+    }
+
+    private bool IsTurnFalseHas3Pieces()
+    {
+        return totalFalsePiece == 3;
+    }
+
+    public bool Is3PieceMove()
+    {
+        if (turn) return IsTurnTrueHas3Pieces();
+        else return IsTurnFalseHas3Pieces();
+    }
+
+    public bool IsTurnTrueDefeat()
+    {
+        if (turnTrueHavetoPut > 0) return false;
+
+        if (totalTruePiece < 3) return true;
+
+        if (BoardManager.instance.IsCantMove(true)) return true;
+
+        if(IsOver10Moves(true)) return true;
+
+        return false;
+    }
+
+    public bool IsTurnFalseDefeat()
+    {
+        if (turnFalseHavetoPut > 0) return false;
+
+        if (totalFalsePiece < 3) return true;
+
+        if (BoardManager.instance.IsCantMove(false)) return true;
+
+        if (IsOver10Moves(false)) return true;
+
+        return false;
+    }
+
+    public bool IsGameOver()
+    {
+        return IsTurnTrueDefeat() || IsTurnFalseDefeat();
     }
 
     public void SetState(EGameState state)
@@ -114,5 +194,17 @@ public class GameManager : MonoBehaviour
     public void ChangeTurn()
     {
         turn = !turn;
+    }
+
+    public bool IsOver10Moves(bool turn)
+    {
+        if (turn) return turnTrue3PiecesMoves >= 10;
+        else return turnFalse3PiecesMoves >= 10;
+    }
+
+    public void SetZeroOf3Moves(bool turn)
+    {
+        if(turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves = 0;
+        else if(!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves = 0;
     }
 }
