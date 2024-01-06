@@ -30,6 +30,9 @@ public class BoardManager : MonoBehaviour
     private List<Piece> truePieceList;
     private List<Piece> falsePieceList;
 
+
+    private bool isAiMove = false;
+
     private void Awake()
     {
         if (instance != null) return;
@@ -64,8 +67,53 @@ public class BoardManager : MonoBehaviour
     //피스를 선택하고 움직이는 동작
     private void MovePiece()
     {
-        Debug.Log(moveState);
+        //플레이어 턴일 시
+        if(!isAiMove)
+        {
+            PlayerMovePiece();
+        }
 
+        else
+        {
+
+        }
+    }
+
+    //게임 시작 시, 피스를 놓는 동작
+    private void PutPieceDown()
+    {
+        //플레이어 턴일 시
+        if (!isAiMove)
+        {
+            PlayerPutPiece();
+        }
+
+        else
+        {
+
+        }
+    }
+
+    //피스를 삭제하는 동작
+    private void DeletePiece()
+    {
+        //플레이어 턴일 시
+        if (!isAiMove)
+        {
+            PlayerDeletePiece();
+        }
+
+        else
+        {
+
+        }
+    }
+
+    #region PlayerLogic
+
+    //Move Piece 단계의 플레이어 로직
+    private void PlayerMovePiece()
+    {
         if (Input.GetMouseButtonDown(0))
         {
             //BeforePick: 피스를 선택하는 단계
@@ -163,8 +211,8 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    //게임 시작 시, 피스를 놓는 동작
-    private void PutPieceDown()
+    //Put Piece 단계의 플레이어 로직
+    private void PlayerPutPiece()
     {
         if (Input.GetMouseButtonDown(0))
         {
@@ -214,8 +262,8 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    //피스를 삭제하는 동작
-    private void DeletePiece()
+    //Delete Piece 단계의 플레이어 로직
+    private void PlayerDeletePiece()
     {
         if (Input.GetMouseButtonDown(0))
         {
@@ -250,6 +298,8 @@ public class BoardManager : MonoBehaviour
             }
         }
     }
+
+    #endregion
 
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true
     public bool IsCantMove(bool turn)
