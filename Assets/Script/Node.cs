@@ -21,5 +21,4 @@ public class Node : MonoBehaviour
         gameObject.name = string.Format("Node ({0}, {1})", x, y);
     }
 
-
 }

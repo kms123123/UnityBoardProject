@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -29,7 +30,7 @@ public class BoardManager : MonoBehaviour
 
     private List<Piece> truePieceList;
     private List<Piece> falsePieceList;
-
+    private int depth = 3;
 
     private bool isAiMove = false;
 
@@ -75,8 +76,38 @@ public class BoardManager : MonoBehaviour
 
         else
         {
+            if(GameManager.Instance.turn)
+            {
+
+            }
+            else
+            {
+
+            }
+        }
+    }
+
+
+
+    //현 상태의 보드의 정보를 갖고 옵니다.
+    private BoardInfo GetInfoFromBoard()
+    {
+        BoardInfo boardInfo = new BoardInfo();
+        boardInfo.SetBoardInfo(MakeNodeInfoList());
+        return boardInfo;
+    }
+
+    
+    private List<NodeInfo> MakeNodeInfoList()
+    {
+        List<NodeInfo> infoList = new List<NodeInfo>();
+
+        foreach(Node node in gameBoard)
+        { 
 
         }
+
+        return infoList;
     }
 
     //게임 시작 시, 피스를 놓는 동작
@@ -300,6 +331,98 @@ public class BoardManager : MonoBehaviour
     }
 
     #endregion
+
+    //Todo: 모든 state에 대해서 move를 반환해주는 로직필요
+    public List<Move> GenerateAllPossibleMoves(bool turn, GameManager.EGameState state)
+    {
+        List<Move> result = new List<Move>();
+        return result;
+    }
+
+    //Ai의 Putting
+    private int PutMinimax()
+    {
+        List<Move> puts = GenerateAllPossibleMoves(GameManager.Instance.turn, GameManager.EGameState.Putting);
+
+        foreach(Move move in puts)
+        {
+            DoPut(move, GameManager.Instance.turn, gameBoard);
+            move.score += CalculateHeuristic(!GameManager.Instance.turn, gameBoard, depth - 1, int.MinValue, int.MaxValue);
+            UndoPut(move, GameManager.Instance.turn, gameBoard);
+        }
+            
+        puts.Sort((Move a, Move b) =>
+        {
+            return a.score - b.score;
+        });
+
+        List<Move> result = new List<Move>();
+        int bestScore = puts[0].score;
+        result.Add(puts[0]);
+
+        for(int i = 0; i <  puts.Count; i++)
+        {
+            if (puts[i].score == bestScore) 
+            {
+                result.Add(puts[i]);
+            }
+            else
+            {
+                break;
+            }    
+        }
+
+        Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
+        return bestMove.endIndex;
+    }
+
+    //Putting을 시뮬레이션 합니다.
+    private void DoPut(Move move, bool turn, List<Node> gameBoard)
+    {
+        Node node = gameBoard[move.endIndex];
+        if(node.currentPiece == null)
+        {
+            Piece piece = new Piece();
+            piece.SetNode(node);
+            if (turn)
+            {
+                piece.SetOwnerToTrue();
+                GameManager.Instance.turnTrueHavetoPut--;
+                GameManager.Instance.totalTruePiece++;
+            } 
+            else
+            {
+                piece.SetOwnerToFalse();
+                GameManager.Instance.turnFalseHavetoPut--;
+                GameManager.Instance.totalFalsePiece++;
+            }
+            node.currentPiece = piece;
+        }
+    }
+
+    //Putting을 원상복구 합니다.
+    private void UndoPut(Move move, bool turn, List<Node> gameBoard)
+    {
+        Node node = gameBoard[move.endIndex];
+
+        node.currentPiece = null;
+        if (turn)
+        {
+            GameManager.Instance.turnTrueHavetoPut++;
+            GameManager.Instance.totalTruePiece--;
+        }
+        else
+        {
+            GameManager.Instance.turnFalseHavetoPut++;
+            GameManager.Instance.totalFalsePiece--;
+        }
+    }
+
+    //특정 보드 순간의 점수를 계산합니다.
+    private int CalculateHeuristic(bool turn, List<Node> gameBoard,int depth, int alpha, int beta)
+    {
+        throw new NotImplementedException();
+    }
 
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true
     public bool IsCantMove(bool turn)

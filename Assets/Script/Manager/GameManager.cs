@@ -14,12 +14,12 @@ public class GameManager : MonoBehaviour
 
     public EGameState state { get; private set; }
 
-    private int turnTrueHavetoPut = 9;
-    private int turnFalseHavetoPut = 9;
-    private int totalTruePiece = 0;
-    private int totalFalsePiece = 0;
-    private int turnTrue3PiecesMoves = 0;
-    private int turnFalse3PiecesMoves = 0;
+    public int turnTrueHavetoPut = 9;
+    public int turnFalseHavetoPut = 9;
+    public int totalTruePiece = 0;
+    public int totalFalsePiece = 0;
+    public int turnTrue3PiecesMoves = 0;
+    public int turnFalse3PiecesMoves = 0;
 
     private void Awake()
     {
@@ -179,6 +179,12 @@ public class GameManager : MonoBehaviour
         if (IsOver10Moves(false)) return true;
 
         return false;
+    }
+
+    public bool CheckWinner()
+    {
+        if (IsTurnTrueDefeat()) return false;
+        else return true;
     }
 
     public bool IsGameOver()
