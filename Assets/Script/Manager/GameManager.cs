@@ -1,6 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -20,6 +17,8 @@ public class GameManager : MonoBehaviour
     public int totalFalsePiece = 0;
     public int turnTrue3PiecesMoves = 0;
     public int turnFalse3PiecesMoves = 0;
+
+    public bool isAiMode;
 
     private void Awake()
     {
@@ -74,7 +73,7 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        switch(state)
+        switch (state)
         {
             case EGameState.Ready:
                 Update_Ready();
@@ -86,7 +85,7 @@ public class GameManager : MonoBehaviour
                 Update_Putting();
                 break;
             case EGameState.Move:
-                
+
                 break;
             case EGameState.Delete:
                 break;
@@ -95,6 +94,7 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log(state);
+        Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
     }
 
     //Todo: Ready구현해야함
@@ -111,7 +111,7 @@ public class GameManager : MonoBehaviour
 
     public void Update_Putting()
     {
-        if(!CanPutDown())
+        if (!CanPutDown())
         {
             state = EGameState.Move;
             BoardManager.instance.moveState = BoardManager.MoveState.BeforePick;
@@ -120,6 +120,8 @@ public class GameManager : MonoBehaviour
 
     public bool CanPutDown()
     {
+        if (BoardManager.instance.isAiCalculating) return true;
+
         return turnTrueHavetoPut > 0 || turnFalseHavetoPut > 0;
     }
 
@@ -128,11 +130,15 @@ public class GameManager : MonoBehaviour
         if (turn)
         {
             turnTrueHavetoPut--;
+            Debug.Log("Delete 5");
+
             totalTruePiece++;
         }
         else
         {
             turnFalseHavetoPut--;
+            Debug.Log("Delete 6");
+
             totalFalsePiece++;
         }
 
@@ -163,7 +169,7 @@ public class GameManager : MonoBehaviour
 
         if (BoardManager.instance.IsCantMove(true)) return true;
 
-        if(IsOver10Moves(true)) return true;
+        if (IsOver10Moves(true)) return true;
 
         return false;
     }
@@ -200,6 +206,18 @@ public class GameManager : MonoBehaviour
     public void ChangeTurn()
     {
         turn = !turn;
+
+        if (isAiMode)
+        {
+            if (BoardManager.instance.isAiMove)
+            {
+                BoardManager.instance.isAiMove = false;
+            }
+            else
+            {
+                BoardManager.instance.isAiMove = true;
+            }
+        }
     }
 
     public bool IsOver10Moves(bool turn)
@@ -210,7 +228,7 @@ public class GameManager : MonoBehaviour
 
     public void SetZeroOf3Moves(bool turn)
     {
-        if(turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves = 0;
-        else if(!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves = 0;
+        if (turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves = 0;
+        else if (!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves = 0;
     }
 }

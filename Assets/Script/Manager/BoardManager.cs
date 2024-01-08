@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
+using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -32,7 +35,8 @@ public class BoardManager : MonoBehaviour
     private List<Piece> falsePieceList;
     private int depth = 3;
 
-    private bool isAiMove = false;
+    public bool isAiMove = false;
+    public bool isAiCalculating = false;
 
     private void Awake()
     {
@@ -121,6 +125,37 @@ public class BoardManager : MonoBehaviour
 
         else
         {
+            Node node = gameBoard[PutMinimax()];
+            //아니라면 피스를 생성하고 설정
+            Transform piece = Instantiate(piecePrafab, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
+            piece.GetComponent<MeshRenderer>().material = GameManager.Instance.turn ? turnTrueColor : turnFalseColor;
+            piece.GetComponent<Piece>().SetNode(node);
+            node.currentPiece = piece.GetComponent<Piece>();
+
+            //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
+            if (GameManager.Instance.turn)
+            {
+                piece.GetComponent<Piece>().SetOwnerToTrue();
+                truePieceList.Add(piece.GetComponent<Piece>());
+            }
+            else
+            {
+                piece.GetComponent<Piece>().SetOwnerToFalse();
+                falsePieceList.Add(piece.GetComponent<Piece>());
+            }
+
+            OnPutPiece?.Invoke(this, EventArgs.Empty);
+
+            //놓았을 때, 해당 노드와 연결된 3Match가 있는지 확인, 있으면 Delete 모드
+            if (Check3MatchManager.instance.Check3Match(node))
+            {
+                GameManager.Instance.SetState(GameManager.EGameState.Delete);
+                OnDeletePieceStart?.Invoke(this, EventArgs.Empty);
+            }
+            else
+            {
+                GameManager.Instance.ChangeTurn();
+            }
 
         }
     }
@@ -336,25 +371,110 @@ public class BoardManager : MonoBehaviour
     public List<Move> GenerateAllPossibleMoves(bool turn, GameManager.EGameState state)
     {
         List<Move> result = new List<Move>();
+
+        //Put state일 시 
+        if(state == GameManager.EGameState.Putting)
+        {
+            for(int i = 0; i < gameBoard.Count; i++)
+            {
+                Node node = gameBoard[i];
+                Move move = new Move(-1, -1, -1, GameManager.EGameState.Putting);
+
+                if (node.currentPiece == null)
+                {
+                    Piece piece = new Piece();
+                    piece.SetNode(node);
+                    if (turn)
+                    {
+                        piece.SetOwnerToTrue();
+                        GameManager.Instance.turnTrueHavetoPut--;
+                        Debug.Log("Delete 1");
+                        GameManager.Instance.totalTruePiece++;
+                    }
+                    else
+                    {
+                        piece.SetOwnerToFalse();
+                        GameManager.Instance.turnFalseHavetoPut--;
+                        Debug.Log("Delete 2");
+
+                        GameManager.Instance.totalFalsePiece++;
+                    }
+                    node.currentPiece = piece;
+                   
+                    move.endIndex = i;
+                    if(Check3MatchManager.instance.Check3Match(node))
+                    {
+                        for(int j = 0; j < gameBoard.Count; j++)
+                        {
+                            Node deleteNode = gameBoard[j];
+                            if(deleteNode.currentPiece != null)
+                            {
+                                if(deleteNode.currentPiece.GetOwner() != turn && !deleteNode.currentPiece.GetbMatch())
+                                {
+                                    Move newMove = new Move(-1, move.endIndex, j, GameManager.EGameState.Delete);
+                                    result.Add(newMove);
+                                }
+                            }
+                        }
+                    }
+                    if(!Check3MatchManager.instance.Check3MatchAndDeleteFlag(node))
+                    {
+                        result.Add(move);
+                    }
+
+                    node.currentPiece = null;
+                    if (turn)
+                    {
+
+                        GameManager.Instance.turnTrueHavetoPut++;
+                        Debug.Log("Delete 1-1");
+
+                        GameManager.Instance.totalTruePiece--;
+                    }
+                    else
+                    {
+
+                        GameManager.Instance.turnFalseHavetoPut++;
+                        Debug.Log("Delete 2-1");
+
+                        GameManager.Instance.totalFalsePiece--;
+                    }
+                }
+            }
+
+        }
+
         return result;
     }
 
     //Ai의 Putting
     private int PutMinimax()
     {
+        isAiCalculating = true;
         List<Move> puts = GenerateAllPossibleMoves(GameManager.Instance.turn, GameManager.EGameState.Putting);
 
         foreach(Move move in puts)
         {
             DoPut(move, GameManager.Instance.turn, gameBoard);
-            move.score += CalculateHeuristic(!GameManager.Instance.turn, gameBoard, depth - 1, int.MinValue, int.MaxValue);
+            move.score += AlphaBeta(!GameManager.Instance.turn, gameBoard, depth - 1, int.MinValue, int.MaxValue, GameManager.EGameState.Putting);
             UndoPut(move, GameManager.Instance.turn, gameBoard);
         }
             
-        puts.Sort((Move a, Move b) =>
+        if(!GameManager.Instance.turn)
         {
-            return a.score - b.score;
-        });
+            puts.Sort((Move a, Move b) =>
+            {
+                return a.score - b.score;
+            });
+        }
+        else
+        {
+            puts.Sort((Move a, Move b) =>
+            {
+                return b.score - a.score;
+            });
+        }
+        
 
         List<Move> result = new List<Move>();
         int bestScore = puts[0].score;
@@ -373,6 +493,8 @@ public class BoardManager : MonoBehaviour
         }
 
         Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
+        Debug.Log("BestScore is " + bestScore);
+        isAiCalculating = false;
         return bestMove.endIndex;
     }
 
@@ -382,18 +504,22 @@ public class BoardManager : MonoBehaviour
         Node node = gameBoard[move.endIndex];
         if(node.currentPiece == null)
         {
-            Piece piece = new Piece();
+            Piece piece = new Piece();  
             piece.SetNode(node);
             if (turn)
             {
                 piece.SetOwnerToTrue();
                 GameManager.Instance.turnTrueHavetoPut--;
+                Debug.Log("Delete 3");
+
                 GameManager.Instance.totalTruePiece++;
             } 
             else
             {
                 piece.SetOwnerToFalse();
                 GameManager.Instance.turnFalseHavetoPut--;
+                Debug.Log("Delete 4");
+
                 GameManager.Instance.totalFalsePiece++;
             }
             node.currentPiece = piece;
@@ -409,19 +535,210 @@ public class BoardManager : MonoBehaviour
         if (turn)
         {
             GameManager.Instance.turnTrueHavetoPut++;
+            Debug.Log("Delete 3-1");
+
             GameManager.Instance.totalTruePiece--;
         }
         else
         {
             GameManager.Instance.turnFalseHavetoPut++;
+            Debug.Log("Delete 4-1");
+
             GameManager.Instance.totalFalsePiece--;
         }
     }
 
     //특정 보드 순간의 점수를 계산합니다.
-    private int CalculateHeuristic(bool turn, List<Node> gameBoard,int depth, int alpha, int beta)
+    private int AlphaBeta(bool turn, List<Node> gameBoard,int depth, int alpha, int beta, GameManager.EGameState state)
     {
-        throw new NotImplementedException();
+        List<Move> moves;
+        //최종 깊이의 경우 휴리스틱을 계산해서 return
+        if (depth == 0)
+        {
+            return CalculateHeuristic(state);
+        }
+        else if (GameManager.Instance.IsGameOver())
+        {
+            if (GameManager.Instance.IsTurnFalseDefeat())
+            {
+                return HeuristicScore.TRUEWIN;
+            }
+            else if (GameManager.Instance.IsTurnTrueDefeat())
+            {
+                return HeuristicScore.FALSEWIN;
+            }
+        }
+        else
+        {
+            moves = GenerateAllPossibleMoves(turn, state);
+
+            foreach (Move move in moves)
+            {
+                if (state == GameManager.EGameState.Putting)
+                {
+                    DoPut(move, turn, gameBoard);
+
+                    if (turn)
+                    {
+                        alpha = math.max(alpha, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
+                        if (beta <= alpha)
+                        {
+                            UndoPut(move, turn, gameBoard);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        beta = math.min(beta, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
+                        if (beta <= alpha)
+                        {
+                            UndoPut(move, turn, gameBoard);
+                            break;
+                        }
+                    }
+
+                    UndoPut(move, turn, gameBoard);
+                }
+
+            }
+
+            if (turn) return alpha;
+            else return beta;
+        }
+
+        Debug.LogWarning("Error in AlphaBeta");
+        return -1;
+    }
+
+    private int CalculateHeuristic(GameManager.EGameState state)
+    {
+        int score = 0;
+        int turnTrueCombiCount = 0, turnFalseCombiCount = 0;
+        int turnTrueTwoPieceCount = 0, turnFalseTwoPieceCount = 0;
+
+        /**
+         * 모든 3매치를 탐색하면서 현 보드의 상황을 파악한다.
+         * 3매치, 2매치, 1매치의 개수, 주요 요충지를 누가 갖고있는지를 모두 판단.
+         * 이후, 각 수마다 보정치를 곱하여 최종 스코어를 계산한다.
+         * */
+        for(int i = 0; i < Check3MatchManager.instance.GetPossibleCombinations().Count; i++)
+        {
+            int turnTruePiece = 0, emptyNode = 0, turnFalsePiece = 0;
+
+            ListWrapper wrapperList = Check3MatchManager.instance.GetPossibleCombinations()[i];
+            foreach(Node node in wrapperList.list)
+            {
+                if (node.currentPiece == null) emptyNode++;
+                else if (node.currentPiece.GetOwner()) turnTruePiece++;
+                else if (!node.currentPiece.GetOwner()) turnFalsePiece++;
+            }
+
+            if(turnTruePiece == 3)
+            {
+                turnTrueCombiCount++;
+            }
+            else if(turnTruePiece == 2 && emptyNode == 1)
+            {
+                turnTrueTwoPieceCount++;
+            }
+            else if(turnTruePiece == 1 && emptyNode == 2)
+            {
+                score += 1;
+            }
+            else if(turnFalsePiece == 1 && emptyNode == 2)
+            {
+                score -= 1;
+            }
+            else if(turnFalsePiece == 2 && emptyNode == 1)
+            {
+                turnFalseTwoPieceCount++;
+            }
+            else if(turnFalsePiece == 3)
+            {
+                turnFalseCombiCount++;
+            }
+
+            foreach(Node node in wrapperList.list)
+            {
+                if(node.currentPiece != null)
+                {
+                    if(node.linkedNodes.Count == 4)
+                    {
+                        if(node.currentPiece.GetOwner())
+                        {
+                            score += 2;
+                        }
+                        else if(!node.currentPiece.GetOwner())
+                        {
+                            score -= 2;
+                        }
+                    }
+
+                    else if(node.linkedNodes.Count == 3)
+                    {
+                        if (node.currentPiece.GetOwner())
+                        {
+                            score += 1;
+                        }
+                        else if (!node.currentPiece.GetOwner())
+                        {
+                            score -= 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        int multiplier;
+
+        //3매치의 개수
+        if(state == GameManager.EGameState.Putting)
+        {
+            multiplier = HeuristicScore.PUT3Match;
+        }
+        else if(state == GameManager.EGameState.Move)
+        {
+            multiplier = HeuristicScore.Move3Match;
+        }
+        else
+        {
+            multiplier = HeuristicScore.Delete3Match;
+        }
+
+        score += multiplier * turnTrueCombiCount;
+        score -= multiplier * turnFalseCombiCount;
+
+        //말의 개수
+        if (state == GameManager.EGameState.Putting)
+        {
+            multiplier = HeuristicScore.PutNumberPiece;
+        }
+        else if (state == GameManager.EGameState.Move)
+        {
+            multiplier = HeuristicScore.MoveNumberPiece;
+        }
+        else
+        {
+            multiplier = HeuristicScore.DeleteNumberPiece;
+        }
+
+        score += multiplier * GameManager.Instance.totalTruePiece;
+        score -= multiplier * GameManager.Instance.totalFalsePiece;
+
+        //2매치의 개수
+        if (state == GameManager.EGameState.Putting)
+        {
+            multiplier = HeuristicScore.Put2Match;
+        }
+        else
+        {
+            multiplier = HeuristicScore.MoveDelete2Match;
+        }
+
+        score += multiplier * turnTrueTwoPieceCount;
+        score -= multiplier * turnFalseTwoPieceCount;
+
+        return score;
     }
 
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true

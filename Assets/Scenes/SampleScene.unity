@@ -288,6 +288,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   moveState: 0
+  isAiMove: 0
 --- !u!4 &223946918
 Transform:
   m_ObjectHideFlags: 0
@@ -3543,8 +3544,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29733b5d03ab943438029c116ff000b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  turnTrueHavetoPut: 9
+  turnFalseHavetoPut: 9
   totalTruePiece: 0
   totalFalsePiece: 0
+  turnTrue3PiecesMoves: 0
+  turnFalse3PiecesMoves: 0
+  isAiMode: 1
 --- !u!4 &2049012702
 Transform:
   m_ObjectHideFlags: 0
