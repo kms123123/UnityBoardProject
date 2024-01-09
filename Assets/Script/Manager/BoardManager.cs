@@ -37,6 +37,9 @@ public class BoardManager : MonoBehaviour
     private int depth = 3;
 
     public bool isAiMove = false;
+    public int aiWantToDelete = -1;
+
+    //Putting 중에 돌을 다 쓰는 상황이 되어 게임오버되는 현상 방지
     public bool isAiCalculating = false;
 
     private void Awake()
@@ -92,29 +95,7 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-
-
-    //현 상태의 보드의 정보를 갖고 옵니다.
-    private BoardInfo GetInfoFromBoard()
-    {
-        BoardInfo boardInfo = new BoardInfo();
-        boardInfo.SetBoardInfo(MakeNodeInfoList());
-        return boardInfo;
-    }
-
     
-    private List<NodeInfo> MakeNodeInfoList()
-    {
-        List<NodeInfo> infoList = new List<NodeInfo>();
-
-        foreach(Node node in gameBoard)
-        { 
-
-        }
-
-        return infoList;
-    }
-
     //게임 시작 시, 피스를 놓는 동작
     private void PutPieceDown()
     {
@@ -126,38 +107,42 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            Node node = gameBoard[PutMinimax()];
-            //아니라면 피스를 생성하고 설정
-            Transform piece = Instantiate(piecePrafab, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
-            piece.GetComponent<MeshRenderer>().material = GameManager.Instance.turn ? turnTrueColor : turnFalseColor;
-            piece.GetComponent<Piece>().SetNode(node);
-            node.currentPiece = piece.GetComponent<Piece>();
+            AIPutPiece();
+        }
+    }
 
-            //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
-            if (GameManager.Instance.turn)
-            {
-                piece.GetComponent<Piece>().SetOwnerToTrue();
-                truePieceList.Add(piece.GetComponent<Piece>());
-            }
-            else
-            {
-                piece.GetComponent<Piece>().SetOwnerToFalse();
-                falsePieceList.Add(piece.GetComponent<Piece>());
-            }
+    private void AIPutPiece()
+    {
+        Node node = gameBoard[PutMinimax()];
+        //아니라면 피스를 생성하고 설정
+        Transform piece = Instantiate(piecePrafab, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
+        piece.GetComponent<MeshRenderer>().material = GameManager.Instance.turn ? turnTrueColor : turnFalseColor;
+        piece.GetComponent<Piece>().SetNode(node);
+        node.currentPiece = piece.GetComponent<Piece>();
 
-            OnPutPiece?.Invoke(this, EventArgs.Empty);
+        //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
+        if (GameManager.Instance.turn)
+        {
+            piece.GetComponent<Piece>().SetOwnerToTrue();
+            truePieceList.Add(piece.GetComponent<Piece>());
+        }
+        else
+        {
+            piece.GetComponent<Piece>().SetOwnerToFalse();
+            falsePieceList.Add(piece.GetComponent<Piece>());
+        }
 
-            //놓았을 때, 해당 노드와 연결된 3Match가 있는지 확인, 있으면 Delete 모드
-            if (Check3MatchManager.instance.Check3Match(node))
-            {
-                GameManager.Instance.SetState(GameManager.EGameState.Delete);
-                OnDeletePieceStart?.Invoke(this, EventArgs.Empty);
-            }
-            else
-            {
-                GameManager.Instance.ChangeTurn();
-            }
+        OnPutPiece?.Invoke(this, EventArgs.Empty);
 
+        //놓았을 때, 해당 노드와 연결된 3Match가 있는지 확인, 있으면 Delete 모드
+        if (Check3MatchManager.instance.Check3Match(node))
+        {
+            GameManager.Instance.SetState(GameManager.EGameState.Delete);
+            OnDeletePieceStart?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            GameManager.Instance.ChangeTurn();
         }
     }
 
@@ -172,7 +157,36 @@ public class BoardManager : MonoBehaviour
 
         else
         {
+            AIDeletePiece();
+        }
+    }
 
+    private void AIDeletePiece()
+    {
+        //Put 또는 Move 단계에서 정했던 index의 노드를 고른다.
+        Node selectNode = gameBoard[aiWantToDelete];
+
+        //상대의 말을 제대로 골랐을 때,
+        if (selectNode.currentPiece.GetOwner() != GameManager.Instance.turn)
+        {
+            //그 말이 3매치로 보호되지 않는다면 삭제
+            if (!selectNode.currentPiece.GetbMatch())
+            {
+                //턴의 반대 주인의 피스를 삭제
+                if (GameManager.Instance.turn)
+                {
+                    falsePieceList.Remove(selectNode.currentPiece);
+                }
+                else
+                {
+                    truePieceList.Remove(selectNode.currentPiece);
+                }
+
+                Destroy(selectNode.currentPiece.gameObject);
+                selectNode.currentPiece = null;
+
+                OnDeletePieceEnd?.Invoke(this, GameManager.Instance.turn);
+            }
         }
     }
 
@@ -454,7 +468,7 @@ public class BoardManager : MonoBehaviour
         foreach(Move move in puts)
         {
             DoPut(move, GameManager.Instance.turn, gameBoard);
-            move.score += AlphaBeta(!GameManager.Instance.turn, gameBoard, depth - 1, int.MinValue, int.MaxValue, GameManager.EGameState.Putting);
+            move.score += AlphaBeta(!GameManager.Instance.turn, gameBoard, depth, int.MinValue, int.MaxValue, GameManager.EGameState.Putting);
             UndoPut(move, GameManager.Instance.turn, gameBoard);
         }
             
@@ -492,6 +506,12 @@ public class BoardManager : MonoBehaviour
 
         Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
         isAiCalculating = false;
+
+        if(bestMove.removeIndex != -1)
+        {
+            aiWantToDelete = bestMove.removeIndex;
+        }
+
         return bestMove.endIndex;
     }
 
@@ -575,20 +595,20 @@ public class BoardManager : MonoBehaviour
                     if (turn)
                     {
                         alpha = math.max(alpha, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
-                        //if (beta <= alpha)
-                        //{
-                        //    UndoPut(move, turn, gameBoard);
-                        //    break;
-                        //}
+                        if (beta <= alpha)
+                        {
+                            UndoPut(move, turn, gameBoard);
+                            break;
+                        }
                     }
                     else
                     {
                         beta = math.min(beta, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
-                        //if (beta <= alpha)
-                        //{
-                        //    UndoPut(move, turn, gameBoard);
-                        //    break;
-                        //}
+                        if (beta <= alpha)
+                        {
+                            UndoPut(move, turn, gameBoard);
+                            break;
+                        }
                     }
 
                     UndoPut(move, turn, gameBoard);

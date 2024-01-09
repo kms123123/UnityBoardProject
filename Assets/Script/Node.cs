@@ -7,6 +7,7 @@ public class Node : MonoBehaviour
     public List<Node> linkedNodes;
     public float x, y;
     public Piece currentPiece;
+    public PieceInfo pieceInfo;
 
     private void Start()
     {

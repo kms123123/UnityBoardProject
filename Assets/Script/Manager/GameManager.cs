@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
@@ -39,7 +39,7 @@ public class GameManager : MonoBehaviour
 
     private void GameManager_OnMoveEnd(object sender, System.EventArgs e)
     {
-        //Move°¡ ³¡³¯ ½Ã 3ÇÇ½º »óÅÂ¿´´Ù¸é, ¿òÁ÷ÀÓ È½¼ö Ãß°¡
+        //Moveê°€ ëë‚  ì‹œ 3í”¼ìŠ¤ ìƒíƒœì˜€ë‹¤ë©´, ì›€ì§ì„ íšŸìˆ˜ ì¶”ê°€
         if (turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves++;
         else if (!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves++;
 
@@ -58,7 +58,7 @@ public class GameManager : MonoBehaviour
     {
         if (!IsGameOver())
         {
-            //¸» °³¼ö °¨¼Ò
+            //ë§ ê°œìˆ˜ ê°ì†Œ
             if (turn) totalFalsePiece--;
             else totalTruePiece--;
 
@@ -94,16 +94,15 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log(state);
-        Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
     }
 
-    //Todo: Ready±¸ÇöÇØ¾ßÇÔ
+    //Todo: Readyêµ¬í˜„í•´ì•¼í•¨
     public void Update_Ready()
     {
         state = EGameState.Start;
     }
 
-    //Todo: Start±¸ÇöÇØ¾ßÇÔ
+    //Todo: Startêµ¬í˜„í•´ì•¼í•¨
     public void Update_Start()
     {
         state = EGameState.Putting;
@@ -203,6 +202,7 @@ public class GameManager : MonoBehaviour
     {
         turn = !turn;
 
+        //vs Ai ëª¨ë“œë¼ë©´ Aiì˜ í†µì œê¶Œì„ ì£¼ë˜ê°€ ëºìŒ
         if (isAiMode)
         {
             if (BoardManager.instance.isAiMove)
