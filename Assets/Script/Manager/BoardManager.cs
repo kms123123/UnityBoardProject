@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -36,7 +33,7 @@ public class BoardManager : MonoBehaviour
     private List<PieceInfo> falsePieceList;
     private int depth = 3;
 
-    public bool isAiMove = false;
+    public bool isAiMove = true;
     public int aiWantToDelete = -1;
 
     //Putting 중에 돌을 다 쓰는 상황이 되어 게임오버되는 현상 방지
@@ -77,14 +74,14 @@ public class BoardManager : MonoBehaviour
     private void MovePiece()
     {
         //플레이어 턴일 시
-        if(!isAiMove)
+        if (!isAiMove)
         {
             PlayerMovePiece();
         }
 
         else
         {
-            if(GameManager.Instance.turn)
+            if (GameManager.Instance.turn)
             {
 
             }
@@ -95,7 +92,7 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    
+
     //게임 시작 시, 피스를 놓는 동작
     private void PutPieceDown()
     {
@@ -189,6 +186,7 @@ public class BoardManager : MonoBehaviour
                 }
 
                 Destroy(selectNode.currentPiece.gameObject);
+                selectNode.pieceInfo.SetNode(null);
                 selectNode.pieceInfo = null;
                 selectNode.currentPiece = null;
 
@@ -389,6 +387,7 @@ public class BoardManager : MonoBehaviour
                             truePieceList.Remove(selectNode.pieceInfo);
                         }
 
+                        selectNode.pieceInfo.SetNode(null);
                         Destroy(selectNode.currentPiece.gameObject);
                         selectNode.currentPiece = null;
                         selectNode.pieceInfo = null;
@@ -408,9 +407,9 @@ public class BoardManager : MonoBehaviour
         List<Move> result = new List<Move>();
 
         //Put state일 시 
-        if(state == GameManager.EGameState.Putting)
+        if (state == GameManager.EGameState.Putting)
         {
-            for(int i = 0; i < gameBoard.Count; i++)
+            for (int i = 0; i < gameBoard.Count; i++)
             {
                 Node node = gameBoard[i];
                 Move move = new Move(-1, -1, -1, GameManager.EGameState.Putting);
@@ -429,19 +428,19 @@ public class BoardManager : MonoBehaviour
                     {
                         pieceInfo.SetOwnerToFalse();
                         GameManager.Instance.turnFalseHavetoPut--;
-                        GameManager.Instance.totalFalsePiece++; 
+                        GameManager.Instance.totalFalsePiece++;
                     }
                     node.pieceInfo = pieceInfo;
-                   
+
                     move.endIndex = i;
-                    if(Check3MatchManager.instance.Check3Match(node))
+                    if (Check3MatchManager.instance.Check3Match(node))
                     {
-                        for(int j = 0; j < gameBoard.Count; j++)
+                        for (int j = 0; j < gameBoard.Count; j++)
                         {
                             Node deleteNode = gameBoard[j];
-                            if(deleteNode.pieceInfo != null)
+                            if (deleteNode.pieceInfo != null)
                             {
-                                if(deleteNode.pieceInfo.GetOwner() != turn && !deleteNode.pieceInfo.GetbMatch())
+                                if (deleteNode.pieceInfo.GetOwner() != turn && !deleteNode.pieceInfo.GetbMatch())
                                 {
                                     Move newMove = new Move(-1, move.endIndex, j, GameManager.EGameState.Delete);
                                     result.Add(newMove);
@@ -449,7 +448,7 @@ public class BoardManager : MonoBehaviour
                             }
                         }
                     }
-                    if(!Check3MatchManager.instance.Check3MatchAndDeleteFlag(node))
+                    if (!Check3MatchManager.instance.Check3MatchAndDeleteFlag(node))
                     {
                         result.Add(move);
                     }
@@ -469,7 +468,7 @@ public class BoardManager : MonoBehaviour
                             GameManager.Instance.totalFalsePiece--;
                         }
                     }
-                        
+
                 }
             }
 
@@ -484,14 +483,14 @@ public class BoardManager : MonoBehaviour
         isAiCalculating = true;
         List<Move> puts = GenerateAllPossibleMoves(GameManager.Instance.turn, GameManager.EGameState.Putting);
 
-        foreach(Move move in puts)
+        foreach (Move move in puts)
         {
             DoPut(move, GameManager.Instance.turn, gameBoard);
             move.score += AlphaBeta(!GameManager.Instance.turn, gameBoard, depth, int.MinValue, int.MaxValue, GameManager.EGameState.Putting);
             UndoPut(move, GameManager.Instance.turn, gameBoard);
         }
-            
-        if(!GameManager.Instance.turn)
+
+        if (!GameManager.Instance.turn)
         {
             puts.Sort((Move a, Move b) =>
             {
@@ -505,28 +504,28 @@ public class BoardManager : MonoBehaviour
                 return b.score - a.score;
             });
         }
-        
+
 
         List<Move> result = new List<Move>();
         int bestScore = puts[0].score;
         result.Add(puts[0]);
 
-        for(int i = 0; i <  puts.Count; i++)
+        for (int i = 0; i < puts.Count; i++)
         {
-            if (puts[i].score == bestScore) 
+            if (puts[i].score == bestScore)
             {
                 result.Add(puts[i]);
             }
             else
             {
                 break;
-            }    
+            }
         }
 
         Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
         isAiCalculating = false;
 
-        if(bestMove.removeIndex != -1)
+        if (bestMove.removeIndex != -1)
         {
             aiWantToDelete = bestMove.removeIndex;
         }
@@ -538,7 +537,7 @@ public class BoardManager : MonoBehaviour
     private void DoPut(Move move, bool turn, List<Node> gameBoard)
     {
         Node node = gameBoard[move.endIndex];
-        if(node.pieceInfo == null)
+        if (node.pieceInfo == null)
         {
             PieceInfo pieceInfo = new PieceInfo();
             pieceInfo.SetNode(node);
@@ -547,14 +546,40 @@ public class BoardManager : MonoBehaviour
                 pieceInfo.SetOwnerToTrue();
                 GameManager.Instance.turnTrueHavetoPut--;
                 GameManager.Instance.totalTruePiece++;
-            } 
+                truePieceList.Add(pieceInfo);
+            }
             else
             {
                 pieceInfo.SetOwnerToFalse();
                 GameManager.Instance.turnFalseHavetoPut--;
                 GameManager.Instance.totalFalsePiece++;
+                falsePieceList.Add(pieceInfo);
             }
             node.pieceInfo = pieceInfo;
+
+            //만약 delete되는 상대 피스가 있을 시 반영 왜 작동을 제대로 못하지
+            if (move.removeIndex != -1)
+            {
+                Node deleteNode = gameBoard[move.removeIndex];
+
+
+                //턴의 반대 주인의 피스를 삭제
+                if (turn)
+                {
+                    falsePieceList.Remove(deleteNode.pieceInfo);
+                    GameManager.Instance.totalFalsePiece--;
+                }
+                else
+                {
+                    truePieceList.Remove(deleteNode.pieceInfo);
+                    GameManager.Instance.totalTruePiece--;
+                }
+
+
+                deleteNode.pieceInfo.SetNode(null);
+                deleteNode.pieceInfo = null;
+
+            }
         }
     }
 
@@ -563,25 +588,50 @@ public class BoardManager : MonoBehaviour
     {
         Node node = gameBoard[move.endIndex];
 
-        if(node.pieceInfo != null)
+        if (node.pieceInfo != null)
         {
             node.pieceInfo.SetNode(null);
-            node.pieceInfo = null;
             if (turn)
             {
                 GameManager.Instance.turnTrueHavetoPut++;
                 GameManager.Instance.totalTruePiece--;
+                truePieceList.Remove(node.pieceInfo);
             }
             else
             {
                 GameManager.Instance.turnFalseHavetoPut++;
                 GameManager.Instance.totalFalsePiece--;
+                falsePieceList.Remove(node.pieceInfo);
+            }
+            node.pieceInfo = null;
+
+            //삭제된 피스가 있었다면 복구
+            if (move.removeIndex != -1)
+            {
+                Node deleteNode = gameBoard[move.removeIndex];
+                PieceInfo pieceInfo = new PieceInfo();
+                pieceInfo.SetNode(deleteNode);
+                deleteNode.pieceInfo = pieceInfo;
+
+                if (turn)
+                {
+                    pieceInfo.SetOwnerToFalse();
+                    falsePieceList.Add(deleteNode.pieceInfo);
+                    GameManager.Instance.totalFalsePiece++;
+                }
+                else
+                {
+                    pieceInfo.SetOwnerToTrue();
+                    truePieceList.Add(deleteNode.pieceInfo);
+                    GameManager.Instance.totalTruePiece++;
+                }
+
             }
         }
     }
 
     //특정 보드 순간의 점수를 계산합니다.
-    private int AlphaBeta(bool turn, List<Node> gameBoard,int depth, int alpha, int beta, GameManager.EGameState state)
+    private int AlphaBeta(bool turn, List<Node> gameBoard, int depth, int alpha, int beta, GameManager.EGameState state)
     {
         List<Move> moves;
         //최종 깊이의 경우 휴리스틱을 계산해서 return
@@ -653,60 +703,60 @@ public class BoardManager : MonoBehaviour
          * 3매치, 2매치, 1매치의 개수, 주요 요충지를 누가 갖고있는지를 모두 판단.
          * 이후, 각 수마다 보정치를 곱하여 최종 스코어를 계산한다.
          * */
-        for(int i = 0; i < Check3MatchManager.instance.GetPossibleCombinations().Count; i++)
+        for (int i = 0; i < Check3MatchManager.instance.GetPossibleCombinations().Count; i++)
         {
             int turnTruePiece = 0, emptyNode = 0, turnFalsePiece = 0;
 
             ListWrapper wrapperList = Check3MatchManager.instance.GetPossibleCombinations()[i];
-            foreach(Node node in wrapperList.list)
+            foreach (Node node in wrapperList.list)
             {
                 if (node.pieceInfo == null) emptyNode++;
                 else if (node.pieceInfo.GetOwner()) turnTruePiece++;
                 else if (!node.pieceInfo.GetOwner()) turnFalsePiece++;
             }
 
-            if(turnTruePiece == 3)
+            if (turnTruePiece == 3)
             {
                 turnTrueCombiCount++;
             }
-            else if(turnTruePiece == 2 && emptyNode == 1)
+            else if (turnTruePiece == 2 && emptyNode == 1)
             {
                 turnTrueTwoPieceCount++;
             }
-            else if(turnTruePiece == 1 && emptyNode == 2)
+            else if (turnTruePiece == 1 && emptyNode == 2)
             {
                 score += 1;
             }
-            else if(turnFalsePiece == 1 && emptyNode == 2)
+            else if (turnFalsePiece == 1 && emptyNode == 2)
             {
                 score -= 1;
             }
-            else if(turnFalsePiece == 2 && emptyNode == 1)
+            else if (turnFalsePiece == 2 && emptyNode == 1)
             {
                 turnFalseTwoPieceCount++;
             }
-            else if(turnFalsePiece == 3)
+            else if (turnFalsePiece == 3)
             {
                 turnFalseCombiCount++;
             }
 
-            foreach(Node node in wrapperList.list)
+            foreach (Node node in wrapperList.list)
             {
-                if(node.pieceInfo != null)
+                if (node.pieceInfo != null)
                 {
-                    if(node.linkedNodes.Count == 4)
+                    if (node.linkedNodes.Count == 4)
                     {
-                        if(node.pieceInfo.GetOwner())
+                        if (node.pieceInfo.GetOwner())
                         {
                             score += 2;
                         }
-                        else if(!node.pieceInfo.GetOwner())
+                        else if (!node.pieceInfo.GetOwner())
                         {
                             score -= 2;
                         }
                     }
 
-                    else if(node.linkedNodes.Count == 3)
+                    else if (node.linkedNodes.Count == 3)
                     {
                         if (node.pieceInfo.GetOwner())
                         {
@@ -724,11 +774,11 @@ public class BoardManager : MonoBehaviour
         int multiplier;
 
         //3매치의 개수
-        if(state == GameManager.EGameState.Putting)
+        if (state == GameManager.EGameState.Putting)
         {
             multiplier = HeuristicScore.PUT3Match;
         }
-        else if(state == GameManager.EGameState.Move)
+        else if (state == GameManager.EGameState.Move)
         {
             multiplier = HeuristicScore.Move3Match;
         }

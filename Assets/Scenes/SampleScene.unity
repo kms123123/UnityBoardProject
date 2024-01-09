@@ -290,6 +290,7 @@ MonoBehaviour:
   tempPieceObj: {fileID: 1559307785}
   moveState: 0
   isAiMove: 0
+  aiWantToDelete: -1
   isAiCalculating: 0
 --- !u!4 &223946918
 Transform:
