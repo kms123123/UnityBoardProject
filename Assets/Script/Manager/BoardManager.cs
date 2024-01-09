@@ -25,6 +25,7 @@ public class BoardManager : MonoBehaviour
     [SerializeField] private Material cannotSelectColor;
 
     [SerializeField] private LayerMask nodeMask;
+    [SerializeField] private GameObject tempPieceObj;
 
     public enum MoveState { BeforePick, AfterPick };
 
@@ -382,22 +383,19 @@ public class BoardManager : MonoBehaviour
 
                 if (node.currentPiece == null)
                 {
-                    Piece piece = new Piece();
+                    Piece piece = Instantiate(piecePrafab, Vector3.zero, Quaternion.identity).GetComponent<Piece>();
                     piece.SetNode(node);
                     if (turn)
                     {
                         piece.SetOwnerToTrue();
                         GameManager.Instance.turnTrueHavetoPut--;
-                        Debug.Log("Delete 1");
                         GameManager.Instance.totalTruePiece++;
                     }
                     else
                     {
                         piece.SetOwnerToFalse();
                         GameManager.Instance.turnFalseHavetoPut--;
-                        Debug.Log("Delete 2");
-
-                        GameManager.Instance.totalFalsePiece++;
+                        GameManager.Instance.totalFalsePiece++; 
                     }
                     node.currentPiece = piece;
                    
@@ -422,23 +420,23 @@ public class BoardManager : MonoBehaviour
                         result.Add(move);
                     }
 
-                    node.currentPiece = null;
-                    if (turn)
+                    if (node.currentPiece != null)
                     {
-
-                        GameManager.Instance.turnTrueHavetoPut++;
-                        Debug.Log("Delete 1-1");
-
-                        GameManager.Instance.totalTruePiece--;
+                        node.currentPiece.SetNode(null);
+                        Destroy(node.currentPiece.gameObject);
+                        node.currentPiece = null;
+                        if (turn)
+                        {
+                            GameManager.Instance.turnTrueHavetoPut++;
+                            GameManager.Instance.totalTruePiece--;
+                        }
+                        else
+                        {
+                            GameManager.Instance.turnFalseHavetoPut++;
+                            GameManager.Instance.totalFalsePiece--;
+                        }
                     }
-                    else
-                    {
-
-                        GameManager.Instance.turnFalseHavetoPut++;
-                        Debug.Log("Delete 2-1");
-
-                        GameManager.Instance.totalFalsePiece--;
-                    }
+                        
                 }
             }
 
@@ -493,7 +491,6 @@ public class BoardManager : MonoBehaviour
         }
 
         Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
-        Debug.Log("BestScore is " + bestScore);
         isAiCalculating = false;
         return bestMove.endIndex;
     }
@@ -504,22 +501,18 @@ public class BoardManager : MonoBehaviour
         Node node = gameBoard[move.endIndex];
         if(node.currentPiece == null)
         {
-            Piece piece = new Piece();  
+            Piece piece = Instantiate(piecePrafab, Vector3.zero, Quaternion.identity).GetComponent<Piece>();
             piece.SetNode(node);
             if (turn)
             {
                 piece.SetOwnerToTrue();
                 GameManager.Instance.turnTrueHavetoPut--;
-                Debug.Log("Delete 3");
-
                 GameManager.Instance.totalTruePiece++;
             } 
             else
             {
                 piece.SetOwnerToFalse();
                 GameManager.Instance.turnFalseHavetoPut--;
-                Debug.Log("Delete 4");
-
                 GameManager.Instance.totalFalsePiece++;
             }
             node.currentPiece = piece;
@@ -531,20 +524,21 @@ public class BoardManager : MonoBehaviour
     {
         Node node = gameBoard[move.endIndex];
 
-        node.currentPiece = null;
-        if (turn)
+        if(node.currentPiece != null)
         {
-            GameManager.Instance.turnTrueHavetoPut++;
-            Debug.Log("Delete 3-1");
-
-            GameManager.Instance.totalTruePiece--;
-        }
-        else
-        {
-            GameManager.Instance.turnFalseHavetoPut++;
-            Debug.Log("Delete 4-1");
-
-            GameManager.Instance.totalFalsePiece--;
+            node.currentPiece.SetNode(null);
+            Destroy(node.currentPiece.gameObject);
+            node.currentPiece = null;
+            if (turn)
+            {
+                GameManager.Instance.turnTrueHavetoPut++;
+                GameManager.Instance.totalTruePiece--;
+            }
+            else
+            {
+                GameManager.Instance.turnFalseHavetoPut++;
+                GameManager.Instance.totalFalsePiece--;
+            }
         }
     }
 
@@ -581,20 +575,20 @@ public class BoardManager : MonoBehaviour
                     if (turn)
                     {
                         alpha = math.max(alpha, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
-                        if (beta <= alpha)
-                        {
-                            UndoPut(move, turn, gameBoard);
-                            break;
-                        }
+                        //if (beta <= alpha)
+                        //{
+                        //    UndoPut(move, turn, gameBoard);
+                        //    break;
+                        //}
                     }
                     else
                     {
                         beta = math.min(beta, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Putting));
-                        if (beta <= alpha)
-                        {
-                            UndoPut(move, turn, gameBoard);
-                            break;
-                        }
+                        //if (beta <= alpha)
+                        //{
+                        //    UndoPut(move, turn, gameBoard);
+                        //    break;
+                        //}
                     }
 
                     UndoPut(move, turn, gameBoard);

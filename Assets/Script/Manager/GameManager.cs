@@ -130,15 +130,11 @@ public class GameManager : MonoBehaviour
         if (turn)
         {
             turnTrueHavetoPut--;
-            Debug.Log("Delete 5");
-
             totalTruePiece++;
         }
         else
         {
             turnFalseHavetoPut--;
-            Debug.Log("Delete 6");
-
             totalFalsePiece++;
         }
 

@@ -287,8 +287,10 @@ MonoBehaviour:
   nodeMask:
     serializedVersion: 2
     m_Bits: 64
+  tempPieceObj: {fileID: 1559307785}
   moveState: 0
   isAiMove: 0
+  isAiCalculating: 0
 --- !u!4 &223946918
 Transform:
   m_ObjectHideFlags: 0
@@ -2767,6 +2769,37 @@ MonoBehaviour:
   x: 0
   y: 6
   currentPiece: {fileID: 0}
+--- !u!1 &1559307785
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1559307786}
+  m_Layer: 0
+  m_Name: TempPiece
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1559307786
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1559307785}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1590839071
 GameObject:
   m_ObjectHideFlags: 0
@@ -3703,3 +3736,4 @@ SceneRoots:
   - {fileID: 835353750}
   - {fileID: 2049012702}
   - {fileID: 1139928447}
+  - {fileID: 1559307786}
