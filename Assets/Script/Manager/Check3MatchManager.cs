@@ -31,17 +31,17 @@ public class Check3MatchManager : MonoBehaviour
         {
             if (!matchCombinations[i].list.Contains(node)) continue;
 
-            if (matchCombinations[i].list[0].currentPiece == null ||
-                matchCombinations[i].list[1].currentPiece == null ||
-                matchCombinations[i].list[2].currentPiece == null)
+            if (matchCombinations[i].list[0].pieceInfo == null ||
+                matchCombinations[i].list[1].pieceInfo == null ||
+                matchCombinations[i].list[2].pieceInfo == null)
                     continue;
 
-            if (matchCombinations[i].list[0].currentPiece.GetOwner() == matchCombinations[i].list[1].currentPiece.GetOwner()
-                && matchCombinations[i].list[1].currentPiece.GetOwner() == matchCombinations[i].list[2].currentPiece.GetOwner())
+            if (matchCombinations[i].list[0].pieceInfo.GetOwner() == matchCombinations[i].list[1].pieceInfo.GetOwner()
+                && matchCombinations[i].list[1].pieceInfo.GetOwner() == matchCombinations[i].list[2].pieceInfo.GetOwner())
             {
                 for(int j = 0; j < matchCombinations[i].list.Count;j++)
                 {
-                    matchCombinations[i].list[j].currentPiece.SetbMatch(true);
+                    matchCombinations[i].list[j].pieceInfo.SetbMatch(true);
                 }
                 current3MatchCombinations.Add(matchCombinations[i]);
                 flag = true;
@@ -58,17 +58,17 @@ public class Check3MatchManager : MonoBehaviour
         {
             if (!matchCombinations[i].list.Contains(node)) continue;
 
-            if (matchCombinations[i].list[0].currentPiece == null ||
-                matchCombinations[i].list[1].currentPiece == null ||
-                matchCombinations[i].list[2].currentPiece == null)
+            if (matchCombinations[i].list[0].pieceInfo == null ||
+                matchCombinations[i].list[1].pieceInfo == null ||
+                matchCombinations[i].list[2].pieceInfo == null)
                 continue;
 
-            if (matchCombinations[i].list[0].currentPiece.GetOwner() == matchCombinations[i].list[1].currentPiece.GetOwner()
-                && matchCombinations[i].list[1].currentPiece.GetOwner() == matchCombinations[i].list[2].currentPiece.GetOwner())
+            if (matchCombinations[i].list[0].pieceInfo.GetOwner() == matchCombinations[i].list[1].pieceInfo.GetOwner()
+                && matchCombinations[i].list[1].pieceInfo.GetOwner() == matchCombinations[i].list[2].pieceInfo.GetOwner())
             {
                 for (int j = 0; j < matchCombinations[i].list.Count; j++)
                 {
-                    matchCombinations[i].list[j].currentPiece.SetbMatch(false);
+                    matchCombinations[i].list[j].pieceInfo.SetbMatch(false);
                 }
                 current3MatchCombinations.Remove(matchCombinations[i]);
                 flag = true;

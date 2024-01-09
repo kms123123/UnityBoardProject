@@ -32,8 +32,8 @@ public class BoardManager : MonoBehaviour
     public MoveState moveState = MoveState.BeforePick;
     private Node selectNodeInMove = null;
 
-    private List<Piece> truePieceList;
-    private List<Piece> falsePieceList;
+    private List<PieceInfo> truePieceList;
+    private List<PieceInfo> falsePieceList;
     private int depth = 3;
 
     public bool isAiMove = false;
@@ -51,8 +51,8 @@ public class BoardManager : MonoBehaviour
 
     private void Start()
     {
-        truePieceList = new List<Piece>();
-        falsePieceList = new List<Piece>();
+        truePieceList = new List<PieceInfo>();
+        falsePieceList = new List<PieceInfo>();
     }
 
     private void Update()
@@ -120,16 +120,22 @@ public class BoardManager : MonoBehaviour
         piece.GetComponent<Piece>().SetNode(node);
         node.currentPiece = piece.GetComponent<Piece>();
 
+        PieceInfo pieceInfo = new PieceInfo();
+        node.pieceInfo = pieceInfo;
+        pieceInfo.SetNode(node);
+
         //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
         if (GameManager.Instance.turn)
         {
             piece.GetComponent<Piece>().SetOwnerToTrue();
-            truePieceList.Add(piece.GetComponent<Piece>());
+            pieceInfo.SetOwnerToTrue();
+            truePieceList.Add(pieceInfo);
         }
         else
         {
             piece.GetComponent<Piece>().SetOwnerToFalse();
-            falsePieceList.Add(piece.GetComponent<Piece>());
+            pieceInfo.SetOwnerToFalse();
+            falsePieceList.Add(pieceInfo);
         }
 
         OnPutPiece?.Invoke(this, EventArgs.Empty);
@@ -167,22 +173,23 @@ public class BoardManager : MonoBehaviour
         Node selectNode = gameBoard[aiWantToDelete];
 
         //상대의 말을 제대로 골랐을 때,
-        if (selectNode.currentPiece.GetOwner() != GameManager.Instance.turn)
+        if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
         {
             //그 말이 3매치로 보호되지 않는다면 삭제
-            if (!selectNode.currentPiece.GetbMatch())
+            if (!selectNode.pieceInfo.GetbMatch())
             {
                 //턴의 반대 주인의 피스를 삭제
                 if (GameManager.Instance.turn)
                 {
-                    falsePieceList.Remove(selectNode.currentPiece);
+                    falsePieceList.Remove(selectNode.pieceInfo);
                 }
                 else
                 {
-                    truePieceList.Remove(selectNode.currentPiece);
+                    truePieceList.Remove(selectNode.pieceInfo);
                 }
 
                 Destroy(selectNode.currentPiece.gameObject);
+                selectNode.pieceInfo = null;
                 selectNode.currentPiece = null;
 
                 OnDeletePieceEnd?.Invoke(this, GameManager.Instance.turn);
@@ -207,7 +214,7 @@ public class BoardManager : MonoBehaviour
                     selectNodeInMove = hitInfo.transform.GetComponent<Node>();
 
                     //해당 턴의 주인이 자신의 말을 골랐을 때, 제대로 선택되었음을 확인
-                    if (selectNodeInMove.currentPiece.GetOwner() == GameManager.Instance.turn)
+                    if (selectNodeInMove.pieceInfo.GetOwner() == GameManager.Instance.turn)
                     {
                         moveState = MoveState.AfterPick;
                     }
@@ -230,7 +237,7 @@ public class BoardManager : MonoBehaviour
                     Node selectNode = hitInfo.transform.GetComponent<Node>();
 
                     //빈 노드일 경우
-                    if (selectNode.currentPiece == null)
+                    if (selectNode.pieceInfo == null)
                     {
                         //3피스가 남아서 순간이동이 가능한 상태이거나, 연결된 노드일 경우 움직임
                         if (GameManager.Instance.Is3PieceMove() || selectNodeInMove.linkedNodes.Contains(selectNode))
@@ -243,6 +250,12 @@ public class BoardManager : MonoBehaviour
                             toMove.transform.position = new Vector3(selectNode.transform.position.x, toMove.transform.position.y, selectNode.transform.position.z);
                             selectNodeInMove.currentPiece = null;
 
+                            PieceInfo pieceInfo = selectNodeInMove.pieceInfo;
+                            selectNode.pieceInfo = pieceInfo;
+                            pieceInfo.SetNode(selectNode);
+                            pieceInfo.SetbMatch(false);
+                            selectNodeInMove.pieceInfo = null;
+
                             //피스가 3매치였을때, 3매치에 해당하는 보호 flag 비활성화
                             for (int i = 0; i < Check3MatchManager.instance.current3MatchCombinations.Count; i++)
                             {
@@ -250,8 +263,8 @@ public class BoardManager : MonoBehaviour
                                 {
                                     foreach (Node node in Check3MatchManager.instance.current3MatchCombinations[i].list)
                                     {
-                                        if (node.currentPiece != null)
-                                            node.currentPiece.SetbMatch(false);
+                                        if (node.pieceInfo != null)
+                                            node.pieceInfo.SetbMatch(false);
                                     }
 
                                     Check3MatchManager.instance.current3MatchCombinations.Remove(Check3MatchManager.instance.current3MatchCombinations[i]);
@@ -275,14 +288,14 @@ public class BoardManager : MonoBehaviour
                     }
 
                     //다른 팀의 피스일 경우 선택초기화
-                    else if (selectNode.currentPiece.GetOwner() != GameManager.Instance.turn)
+                    else if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
                     {
                         moveState = MoveState.BeforePick;
                         selectNodeInMove = null;
                     }
 
                     //같은 팀의 피스일 경우, 그 피스를 선택
-                    else if (selectNode.currentPiece.GetOwner() == GameManager.Instance.turn)
+                    else if (selectNode.pieceInfo.GetOwner() == GameManager.Instance.turn)
                     {
                         selectNodeInMove = selectNode;
                     }
@@ -306,7 +319,7 @@ public class BoardManager : MonoBehaviour
                     Node node = hitInfo.transform.GetComponent<Node>();
 
                     //해당 노드에 피스가 이미 있을 시 무시
-                    if (node.currentPiece != null) return;
+                    if (node.pieceInfo != null) return;
 
                     //아니라면 피스를 생성하고 설정
                     Transform piece = Instantiate(piecePrafab, new Vector3(hitInfo.transform.position.x, 0.3f, hitInfo.transform.position.z), Quaternion.identity);
@@ -314,16 +327,22 @@ public class BoardManager : MonoBehaviour
                     piece.GetComponent<Piece>().SetNode(node);
                     node.currentPiece = piece.GetComponent<Piece>();
 
+                    PieceInfo pieceInfo = new PieceInfo();
+                    pieceInfo.SetNode(node);
+                    node.pieceInfo = pieceInfo;
+
                     //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
                     if (GameManager.Instance.turn)
                     {
                         piece.GetComponent<Piece>().SetOwnerToTrue();
-                        truePieceList.Add(piece.GetComponent<Piece>());
+                        pieceInfo.SetOwnerToTrue();
+                        truePieceList.Add(pieceInfo);
                     }
                     else
                     {
                         piece.GetComponent<Piece>().SetOwnerToFalse();
-                        falsePieceList.Add(piece.GetComponent<Piece>());
+                        pieceInfo.SetOwnerToFalse();
+                        falsePieceList.Add(pieceInfo);
                     }
 
                     OnPutPiece?.Invoke(this, EventArgs.Empty);
@@ -355,23 +374,24 @@ public class BoardManager : MonoBehaviour
                 Node selectNode = hitInfo.transform.GetComponent<Node>();
 
                 //상대의 말을 제대로 골랐을 때,
-                if (selectNode.currentPiece.GetOwner() != GameManager.Instance.turn)
+                if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
                 {
                     //그 말이 3매치로 보호되지 않는다면 삭제
-                    if (!selectNode.currentPiece.GetbMatch())
+                    if (!selectNode.pieceInfo.GetbMatch())
                     {
                         //턴의 반대 주인의 피스를 삭제
                         if (GameManager.Instance.turn)
                         {
-                            falsePieceList.Remove(selectNode.currentPiece);
+                            falsePieceList.Remove(selectNode.pieceInfo);
                         }
                         else
                         {
-                            truePieceList.Remove(selectNode.currentPiece);
+                            truePieceList.Remove(selectNode.pieceInfo);
                         }
 
                         Destroy(selectNode.currentPiece.gameObject);
                         selectNode.currentPiece = null;
+                        selectNode.pieceInfo = null;
 
                         OnDeletePieceEnd?.Invoke(this, GameManager.Instance.turn);
                     }
@@ -395,23 +415,23 @@ public class BoardManager : MonoBehaviour
                 Node node = gameBoard[i];
                 Move move = new Move(-1, -1, -1, GameManager.EGameState.Putting);
 
-                if (node.currentPiece == null)
+                if (node.pieceInfo == null)
                 {
-                    Piece piece = Instantiate(piecePrafab, Vector3.zero, Quaternion.identity).GetComponent<Piece>();
-                    piece.SetNode(node);
+                    PieceInfo pieceInfo = new PieceInfo();
+                    pieceInfo.SetNode(node);
                     if (turn)
                     {
-                        piece.SetOwnerToTrue();
+                        pieceInfo.SetOwnerToTrue();
                         GameManager.Instance.turnTrueHavetoPut--;
                         GameManager.Instance.totalTruePiece++;
                     }
                     else
                     {
-                        piece.SetOwnerToFalse();
+                        pieceInfo.SetOwnerToFalse();
                         GameManager.Instance.turnFalseHavetoPut--;
                         GameManager.Instance.totalFalsePiece++; 
                     }
-                    node.currentPiece = piece;
+                    node.pieceInfo = pieceInfo;
                    
                     move.endIndex = i;
                     if(Check3MatchManager.instance.Check3Match(node))
@@ -419,9 +439,9 @@ public class BoardManager : MonoBehaviour
                         for(int j = 0; j < gameBoard.Count; j++)
                         {
                             Node deleteNode = gameBoard[j];
-                            if(deleteNode.currentPiece != null)
+                            if(deleteNode.pieceInfo != null)
                             {
-                                if(deleteNode.currentPiece.GetOwner() != turn && !deleteNode.currentPiece.GetbMatch())
+                                if(deleteNode.pieceInfo.GetOwner() != turn && !deleteNode.pieceInfo.GetbMatch())
                                 {
                                     Move newMove = new Move(-1, move.endIndex, j, GameManager.EGameState.Delete);
                                     result.Add(newMove);
@@ -434,11 +454,10 @@ public class BoardManager : MonoBehaviour
                         result.Add(move);
                     }
 
-                    if (node.currentPiece != null)
+                    if (node.pieceInfo != null)
                     {
-                        node.currentPiece.SetNode(null);
-                        Destroy(node.currentPiece.gameObject);
-                        node.currentPiece = null;
+                        node.pieceInfo.SetNode(null);
+                        node.pieceInfo = null;
                         if (turn)
                         {
                             GameManager.Instance.turnTrueHavetoPut++;
@@ -519,23 +538,23 @@ public class BoardManager : MonoBehaviour
     private void DoPut(Move move, bool turn, List<Node> gameBoard)
     {
         Node node = gameBoard[move.endIndex];
-        if(node.currentPiece == null)
+        if(node.pieceInfo == null)
         {
-            Piece piece = Instantiate(piecePrafab, Vector3.zero, Quaternion.identity).GetComponent<Piece>();
-            piece.SetNode(node);
+            PieceInfo pieceInfo = new PieceInfo();
+            pieceInfo.SetNode(node);
             if (turn)
             {
-                piece.SetOwnerToTrue();
+                pieceInfo.SetOwnerToTrue();
                 GameManager.Instance.turnTrueHavetoPut--;
                 GameManager.Instance.totalTruePiece++;
             } 
             else
             {
-                piece.SetOwnerToFalse();
+                pieceInfo.SetOwnerToFalse();
                 GameManager.Instance.turnFalseHavetoPut--;
                 GameManager.Instance.totalFalsePiece++;
             }
-            node.currentPiece = piece;
+            node.pieceInfo = pieceInfo;
         }
     }
 
@@ -544,11 +563,10 @@ public class BoardManager : MonoBehaviour
     {
         Node node = gameBoard[move.endIndex];
 
-        if(node.currentPiece != null)
+        if(node.pieceInfo != null)
         {
-            node.currentPiece.SetNode(null);
-            Destroy(node.currentPiece.gameObject);
-            node.currentPiece = null;
+            node.pieceInfo.SetNode(null);
+            node.pieceInfo = null;
             if (turn)
             {
                 GameManager.Instance.turnTrueHavetoPut++;
@@ -642,9 +660,9 @@ public class BoardManager : MonoBehaviour
             ListWrapper wrapperList = Check3MatchManager.instance.GetPossibleCombinations()[i];
             foreach(Node node in wrapperList.list)
             {
-                if (node.currentPiece == null) emptyNode++;
-                else if (node.currentPiece.GetOwner()) turnTruePiece++;
-                else if (!node.currentPiece.GetOwner()) turnFalsePiece++;
+                if (node.pieceInfo == null) emptyNode++;
+                else if (node.pieceInfo.GetOwner()) turnTruePiece++;
+                else if (!node.pieceInfo.GetOwner()) turnFalsePiece++;
             }
 
             if(turnTruePiece == 3)
@@ -674,15 +692,15 @@ public class BoardManager : MonoBehaviour
 
             foreach(Node node in wrapperList.list)
             {
-                if(node.currentPiece != null)
+                if(node.pieceInfo != null)
                 {
                     if(node.linkedNodes.Count == 4)
                     {
-                        if(node.currentPiece.GetOwner())
+                        if(node.pieceInfo.GetOwner())
                         {
                             score += 2;
                         }
-                        else if(!node.currentPiece.GetOwner())
+                        else if(!node.pieceInfo.GetOwner())
                         {
                             score -= 2;
                         }
@@ -690,11 +708,11 @@ public class BoardManager : MonoBehaviour
 
                     else if(node.linkedNodes.Count == 3)
                     {
-                        if (node.currentPiece.GetOwner())
+                        if (node.pieceInfo.GetOwner())
                         {
                             score += 1;
                         }
-                        else if (!node.currentPiece.GetOwner())
+                        else if (!node.pieceInfo.GetOwner())
                         {
                             score -= 1;
                         }
@@ -758,18 +776,18 @@ public class BoardManager : MonoBehaviour
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true
     public bool IsCantMove(bool turn)
     {
-        List<Piece> list;
+        List<PieceInfo> list;
 
         if (turn) list = truePieceList;
         else list = falsePieceList;
 
-        foreach (Piece piece in list)
+        foreach (PieceInfo piece in list)
         {
             Node node = piece.GetNode();
 
             foreach (Node linkedNode in node.linkedNodes)
             {
-                if (linkedNode.currentPiece == null)
+                if (linkedNode.pieceInfo == null)
                 {
                     return false;
                 }
