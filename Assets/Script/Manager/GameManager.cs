@@ -50,6 +50,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
+            SetState(EGameState.Finish);
             Debug.Log("GameOver!");
         }
     }
@@ -62,11 +63,19 @@ public class GameManager : MonoBehaviour
             if (turn) totalFalsePiece--;
             else totalTruePiece--;
 
+            if(IsGameOver())
+            {
+                SetState(EGameState.Finish);
+                Debug.Log("GameOver!");
+                return;
+            }
+
             ChangeTurn();
             SetState(EGameState.Putting);
         }
         else
         {
+            SetState(EGameState.Finish);
             Debug.Log("GameOver!");
         }
     }
@@ -126,18 +135,27 @@ public class GameManager : MonoBehaviour
 
     private void GameManager_OnPutPiece(object sender, System.EventArgs e)
     {
-        if (turn)
+        if(!IsGameOver())
         {
-            turnTrueHavetoPut--;
-            totalTruePiece++;
+            if (turn)
+            {
+                turnTrueHavetoPut--;
+                totalTruePiece++;
+            }
+            else
+            {
+                turnFalseHavetoPut--;
+                totalFalsePiece++;
+            }
+
+            Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
         }
         else
         {
-            turnFalseHavetoPut--;
-            totalFalsePiece++;
+            SetState(EGameState.Finish);
+            Debug.Log("Game Over!");
         }
-
-        Debug.Log(turnTrueHavetoPut + " " + turnFalseHavetoPut);
+       
     }
 
     private bool IsTurnTrueHas3Pieces()

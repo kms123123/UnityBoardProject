@@ -1,12 +1,13 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PieceInfo
 {
-    private Node currentNode = null;
-    private bool is3Match = false;
-    [SerializeField] private bool ownedBy = false;
+    public Node currentNode = null;
+    public bool is3Match = false;
+    public bool ownedBy = false;
 
     public Node GetNode() { return currentNode; }
     public void SetNode(Node node) { currentNode = node; }

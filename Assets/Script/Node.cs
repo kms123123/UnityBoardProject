@@ -22,4 +22,13 @@ public class Node : MonoBehaviour
         gameObject.name = string.Format("Node ({0}, {1})", x, y);
     }
 
+    private void Update()
+    {
+        if(Input.GetKeyDown(KeyCode.T))
+        {
+            if(pieceInfo !=null)
+            Debug.Log(gameObject.name + " has " + pieceInfo.GetOwner());
+        }
+    }
+
 }

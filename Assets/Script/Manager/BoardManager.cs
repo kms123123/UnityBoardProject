@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -81,14 +83,58 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            if (GameManager.Instance.turn)
-            {
+            AIMovePiece();
+        }
+    }
 
-            }
-            else
-            {
 
+    private void AIMovePiece()
+    {
+        Move bestMove = MoveMinimax();
+        Node startNode = gameBoard[bestMove.startIndex];
+        Node endNode = gameBoard[bestMove.endIndex];
+
+        //피스이동
+        Piece toMove = startNode.currentPiece;
+        endNode.currentPiece = toMove;
+        toMove.SetNode(endNode);
+        toMove.SetbMatch(false);
+        toMove.transform.position = new Vector3(endNode.transform.position.x, toMove.transform.position.y, endNode.transform.position.z);
+        startNode.currentPiece = null;
+
+        PieceInfo pieceInfo = startNode.pieceInfo;
+        endNode.pieceInfo = pieceInfo;
+        pieceInfo.SetNode(endNode);
+        pieceInfo.SetbMatch(false);
+        startNode.pieceInfo = null;
+
+        //피스가 3매치였을때, 3매치에 해당하는 보호 flag 비활성화
+        for (int i = 0; i < Check3MatchManager.instance.current3MatchCombinations.Count; i++)
+        {
+            if (Check3MatchManager.instance.current3MatchCombinations[i].list.Contains(startNode))
+            {
+                foreach (Node node in Check3MatchManager.instance.current3MatchCombinations[i].list)
+                {
+                    if (node.pieceInfo != null)
+                        node.pieceInfo.SetbMatch(false);
+                }
+
+                Check3MatchManager.instance.current3MatchCombinations.Remove(Check3MatchManager.instance.current3MatchCombinations[i]);
+                i--;
             }
+        }
+
+        //3매치가 되는지 확인, 되면 Delete State
+        if (Check3MatchManager.instance.Check3Match(endNode))
+        {
+            //3피스만 남아있다면, 3피스 움직임 횟수 초기화
+            GameManager.Instance.SetZeroOf3Moves(GameManager.Instance.turn);
+            GameManager.Instance.SetState(GameManager.EGameState.Delete);
+            OnDeletePieceStart?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            OnMoveEnd?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -401,7 +447,7 @@ public class BoardManager : MonoBehaviour
 
     #endregion
 
-    //Todo: 모든 state에 대해서 move를 반환해주는 로직필요
+    //특정 state에 따라 Ai가 행동가능한 모든 경우의 수를 반환
     public List<Move> GenerateAllPossibleMoves(bool turn, GameManager.EGameState state)
     {
         List<Move> result = new List<Move>();
@@ -474,6 +520,114 @@ public class BoardManager : MonoBehaviour
 
         }
 
+        //Move state일 시
+        else if(state == GameManager.EGameState.Move)
+        {
+            for (int i = 0; i < gameBoard.Count; i++)
+            {
+                if (gameBoard[i].pieceInfo == null) continue;
+                if (gameBoard[i].pieceInfo.GetOwner() != turn) continue;
+
+                Node node = gameBoard[i];
+
+                //True 턴, 아니면 False턴이 피스 3개일 시
+                if ((turn && GameManager.Instance.totalTruePiece == 3) || (!turn && GameManager.Instance.totalFalsePiece == 3))
+                {
+                    for (int k = 0; k < gameBoard.Count; k++)
+                    {
+                        Node nextNode = gameBoard[k];
+
+                        if (nextNode == node) continue;
+                        if (nextNode.pieceInfo != null) continue;
+
+                        Move move = new Move(i, k, -1, GameManager.EGameState.Move);
+                        Check3MatchManager.instance.Check3MatchAndDeleteFlag(node);
+                        PieceInfo movePiece = node.pieceInfo;
+                        node.pieceInfo = null;
+                        movePiece.SetNode(nextNode);
+                        movePiece.SetbMatch(false);
+                        nextNode.pieceInfo = movePiece;
+
+                        if (Check3MatchManager.instance.Check3Match(nextNode))
+                        {
+                            for (int j = 0; j < gameBoard.Count; j++)
+                            {
+                                Node deleteNode = gameBoard[j];
+                                if (deleteNode.pieceInfo != null)
+                                {
+                                    if (deleteNode.pieceInfo.GetOwner() != turn && !deleteNode.pieceInfo.GetbMatch())
+                                    {
+                                        Move newMove = new Move(i, k, j, GameManager.EGameState.Delete);
+                                        result.Add(newMove);
+                                    }
+                                }
+                            }
+                        }
+                        if (!Check3MatchManager.instance.Check3MatchAndDeleteFlag(nextNode))
+                        {
+                            result.Add(move);
+                        }
+
+                        nextNode.pieceInfo = null;
+                        movePiece.SetNode(node);
+                        node.pieceInfo = movePiece;
+                        Check3MatchManager.instance.Check3Match(node);
+                    }
+                }
+                //다 아니라면 연결된 노드로만 이동가능
+                else
+                {
+                    for (int k = 0; k < node.linkedNodes.Count; k++)
+                    {
+                        Node nextNode = node.linkedNodes[k];
+
+                        if (nextNode.pieceInfo != null) continue;
+
+                        for(int z = 0; z < gameBoard.Count; z++)
+                        {
+                            if (gameBoard[z] == nextNode)
+                            {
+                                Move move = new Move(i, z, -1, GameManager.EGameState.Move);
+                                Check3MatchManager.instance.Check3MatchAndDeleteFlag(node);
+                                PieceInfo movePiece = node.pieceInfo;
+                                node.pieceInfo = null;
+                                movePiece.SetNode(nextNode);
+                                nextNode.pieceInfo = movePiece;
+
+                                if (Check3MatchManager.instance.Check3Match(nextNode))
+                                {
+                                    for (int j = 0; j < gameBoard.Count; j++)
+                                    {
+                                        Node deleteNode = gameBoard[j];
+                                        if (deleteNode.pieceInfo != null)
+                                        {
+                                            if (deleteNode.pieceInfo.GetOwner() != turn && !deleteNode.pieceInfo.GetbMatch())
+                                            {
+                                                Move newMove = new Move(i, z, j, GameManager.EGameState.Delete);
+                                                result.Add(newMove);
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!Check3MatchManager.instance.Check3MatchAndDeleteFlag(nextNode))
+                                {
+                                    result.Add(move);
+                                }
+
+                                nextNode.pieceInfo = null;
+                                movePiece.SetNode(node);
+                                node.pieceInfo = movePiece;
+                                Check3MatchManager.instance.Check3Match(node);
+
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+
         return result;
     }
 
@@ -533,6 +687,62 @@ public class BoardManager : MonoBehaviour
         return bestMove.endIndex;
     }
 
+    //Ai의 Move
+    private Move MoveMinimax()
+    {
+        isAiCalculating = true;
+        List<Move> puts = GenerateAllPossibleMoves(GameManager.Instance.turn, GameManager.EGameState.Move);
+
+        foreach (Move move in puts)
+        {
+            DoMove(move, GameManager.Instance.turn, gameBoard);
+            move.score += AlphaBeta(!GameManager.Instance.turn, gameBoard, depth, int.MinValue, int.MaxValue, GameManager.EGameState.Move);
+            UndoMove(move, GameManager.Instance.turn, gameBoard);
+        }
+
+        if (!GameManager.Instance.turn)
+        {
+            puts.Sort((Move a, Move b) =>
+            {
+                return a.score - b.score;
+            });
+        }
+        else
+        {
+            puts.Sort((Move a, Move b) =>
+            {
+                return b.score - a.score;
+            });
+        }
+
+
+        List<Move> result = new List<Move>();
+        int bestScore = puts[0].score;
+        result.Add(puts[0]);
+
+        for (int i = 0; i < puts.Count; i++)
+        {
+            if (puts[i].score == bestScore)
+            {
+                result.Add(puts[i]);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        Move bestMove = result[UnityEngine.Random.Range(0, result.Count)];
+        isAiCalculating = false;
+
+        if (bestMove.removeIndex != -1)
+        {
+            aiWantToDelete = bestMove.removeIndex;
+        }
+
+        return bestMove;
+    }
+
     //Putting을 시뮬레이션 합니다.
     private void DoPut(Move move, bool turn, List<Node> gameBoard)
     {
@@ -557,11 +767,11 @@ public class BoardManager : MonoBehaviour
             }
             node.pieceInfo = pieceInfo;
 
-            //만약 delete되는 상대 피스가 있을 시 반영 왜 작동을 제대로 못하지
+            //만약 delete되는 상대 피스가 있을 시 반영
             if (move.removeIndex != -1)
             {
+                Check3MatchManager.instance.Check3Match(node);
                 Node deleteNode = gameBoard[move.removeIndex];
-
 
                 //턴의 반대 주인의 피스를 삭제
                 if (turn)
@@ -590,6 +800,11 @@ public class BoardManager : MonoBehaviour
 
         if (node.pieceInfo != null)
         {
+            if (move.removeIndex != -1)
+            {
+                Check3MatchManager.instance.Check3MatchAndDeleteFlag(node);
+            }
+
             node.pieceInfo.SetNode(null);
             if (turn)
             {
@@ -627,6 +842,89 @@ public class BoardManager : MonoBehaviour
                 }
 
             }
+        }
+    }
+
+    //Putting을 시뮬레이션 합니다.
+    private void DoMove(Move move, bool turn, List<Node> gameBoard)
+    {
+        Node startNode = gameBoard[move.startIndex];
+        Node endNode = gameBoard[move.endIndex];
+        if (endNode.pieceInfo == null)
+        {
+            PieceInfo pieceInfo = startNode.pieceInfo;
+            Check3MatchManager.instance.Check3MatchAndDeleteFlag(startNode);
+            startNode.pieceInfo = null;
+            pieceInfo.SetNode(endNode);
+            pieceInfo.SetbMatch(false);
+            endNode.pieceInfo = pieceInfo;
+
+            //만약 delete되는 상대 피스가 있을 시 반영
+            if (move.removeIndex != -1)
+            {
+                Check3MatchManager.instance.Check3Match(endNode);
+                Node deleteNode = gameBoard[move.removeIndex];
+
+                //턴의 반대 주인의 피스를 삭제
+                if (turn)
+                {
+                    falsePieceList.Remove(deleteNode.pieceInfo);
+                    GameManager.Instance.totalFalsePiece--;
+                }
+                else
+                {
+                    truePieceList.Remove(deleteNode.pieceInfo);
+                    GameManager.Instance.totalTruePiece--;
+                }
+
+                deleteNode.pieceInfo.SetNode(null);
+                deleteNode.pieceInfo = null;
+            }
+        }
+    }
+
+    //Putting을 원상복구 합니다.
+    private void UndoMove(Move move, bool turn, List<Node> gameBoard)
+    {
+        Node startNode = gameBoard[move.startIndex];
+        Node endNode = gameBoard[move.endIndex];
+        if (endNode.pieceInfo != null)
+        {
+            if(move.removeIndex != -1)
+            {
+                Check3MatchManager.instance.Check3MatchAndDeleteFlag(endNode);
+            }
+
+            PieceInfo pieceInfo = endNode.pieceInfo;
+            endNode.pieceInfo.SetNode(null);
+            endNode.pieceInfo = null;
+            startNode.pieceInfo = pieceInfo;
+            pieceInfo.SetNode(startNode);
+
+            //삭제된 피스가 있었다면 복구
+            if (move.removeIndex != -1)
+            {
+                Node deleteNode = gameBoard[move.removeIndex];
+                PieceInfo deleteInfo = new PieceInfo();
+                deleteInfo.SetNode(deleteNode);
+                deleteNode.pieceInfo = deleteInfo;
+
+                if (turn)
+                {
+                    deleteInfo.SetOwnerToFalse();
+                    falsePieceList.Add(deleteNode.pieceInfo);
+                    GameManager.Instance.totalFalsePiece++;
+                }
+                else
+                {
+                    deleteInfo.SetOwnerToTrue();
+                    truePieceList.Add(deleteNode.pieceInfo);
+                    GameManager.Instance.totalTruePiece++;
+                }
+
+            }
+
+            Check3MatchManager.instance.Check3Match(startNode);
         }
     }
 
@@ -680,6 +978,32 @@ public class BoardManager : MonoBehaviour
                     }
 
                     UndoPut(move, turn, gameBoard);
+                }
+
+                if(state == GameManager.EGameState.Move)
+                {
+                    DoMove(move, turn, gameBoard);
+
+                    if (turn)
+                    {
+                        alpha = math.max(alpha, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Move));
+                        if (beta <= alpha)
+                        {
+                            UndoMove(move, turn, gameBoard);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        beta = math.min(beta, AlphaBeta(!turn, gameBoard, depth - 1, alpha, beta, GameManager.EGameState.Move));
+                        if (beta <= alpha)
+                        {
+                            UndoMove(move, turn, gameBoard);
+                            break;
+                        }
+                    }
+
+                    UndoMove(move, turn, gameBoard);
                 }
 
             }
