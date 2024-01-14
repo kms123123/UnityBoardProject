@@ -845,7 +845,7 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    //Putting을 시뮬레이션 합니다.
+    //Move를 시뮬레이션 합니다.
     private void DoMove(Move move, bool turn, List<Node> gameBoard)
     {
         Node startNode = gameBoard[move.startIndex];
@@ -883,7 +883,7 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    //Putting을 원상복구 합니다.
+    //Move를 원상복구 합니다.
     private void UndoMove(Move move, bool turn, List<Node> gameBoard)
     {
         Node startNode = gameBoard[move.startIndex];
@@ -1150,6 +1150,16 @@ public class BoardManager : MonoBehaviour
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true
     public bool IsCantMove(bool turn)
     {
+        if(turn)
+        {
+            if (GameManager.Instance.totalTruePiece == 3) return true;
+        }
+        else
+        {
+            if (GameManager.Instance.totalFalsePiece == 3) return true;
+        }
+
+
         List<PieceInfo> list;
 
         if (turn) list = truePieceList;
