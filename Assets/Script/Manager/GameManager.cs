@@ -1,15 +1,21 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
 
+    public event EventHandler OnTurnChanged;
+
     public enum EGameState { Ready, Start, Putting, Move, Delete, Finish }
+    public enum EGameMode { PVPNet, PVPLocal, PVE }
 
     public static GameManager Instance;
 
     public bool turn { get; private set; }
+    public int turnNumbers;
 
     public EGameState state { get; private set; }
+    public EGameMode gameMode { get; private set; }
 
     public int turnTrueHavetoPut = 9;
     public int turnFalseHavetoPut = 9;
@@ -19,6 +25,12 @@ public class GameManager : MonoBehaviour
     public int turnFalse3PiecesMoves = 0;
 
     public bool isAiMode;
+
+    public UserInfo player1UserInfo;
+    public UserInfo player2UserInfo;
+
+    public int testForTrueIndex;
+    public int testForFalseIndex;
 
     private void Awake()
     {
@@ -35,6 +47,8 @@ public class GameManager : MonoBehaviour
         BoardManager.instance.OnMoveEnd += GameManager_OnMoveEnd;
 
         state = EGameState.Ready;
+        gameMode = EGameMode.PVPLocal;
+        turnNumbers = 1;
     }
 
     private void GameManager_OnMoveEnd(object sender, System.EventArgs e)
@@ -177,13 +191,9 @@ public class GameManager : MonoBehaviour
     public bool IsTurnTrueDefeat()
     {
         if (turnTrueHavetoPut > 0) return false;
-
         if (totalTruePiece < 3) return true;
-
         if (BoardManager.instance.IsCantMove(true)) return true;
-
         if (IsOver10Moves(true)) return true;
-
         return false;
     }
 
@@ -219,6 +229,7 @@ public class GameManager : MonoBehaviour
     public void ChangeTurn()
     {
         turn = !turn;
+        turnNumbers++;
 
         //vs Ai 모드라면 Ai의 통제권을 주던가 뺏음
         if (isAiMode)
@@ -232,6 +243,8 @@ public class GameManager : MonoBehaviour
                 BoardManager.instance.isAiMove = true;
             }
         }
+
+        OnTurnChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public bool IsOver10Moves(bool turn)

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
+using UnityEditor.PackageManager;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -40,6 +42,8 @@ public class BoardManager : MonoBehaviour
 
     //Putting 중에 돌을 다 쓰는 상황이 되어 게임오버되는 현상 방지
     public bool isAiCalculating = false;
+    private bool isAiStart = false;
+
 
     private void Awake()
     {
@@ -83,16 +87,24 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            AIMovePiece();
+            if(!isAiStart)
+            {
+                StartCoroutine(AIMovePiece());
+                isAiStart = true;
+            }
         }
     }
 
 
-    private void AIMovePiece()
+    private IEnumerator AIMovePiece()
     {
         Move bestMove = MoveMinimax();
         Node startNode = gameBoard[bestMove.startIndex];
         Node endNode = gameBoard[bestMove.endIndex];
+
+        //AI가 고민하는 것같은 효과 연출
+        float randomTime = UnityEngine.Random.Range(2, 3);
+        yield return new WaitForSeconds(randomTime);
 
         //피스이동
         Piece toMove = startNode.currentPiece;
@@ -136,6 +148,8 @@ public class BoardManager : MonoBehaviour
         {
             OnMoveEnd?.Invoke(this, EventArgs.Empty);
         }
+
+        isAiStart = false;
     }
 
 
@@ -150,16 +164,24 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            AIPutPiece();
+            if(!isAiStart)
+            {
+                StartCoroutine(AIPutPiece());
+                isAiStart = true;
+            }
         }
     }
 
-    private void AIPutPiece()
+    private IEnumerator AIPutPiece()
     {
         Node node = gameBoard[PutMinimax()];
+
+        float randomTime = UnityEngine.Random.Range(2, 3);
+        yield return new WaitForSeconds(randomTime);
+
         //아니라면 피스를 생성하고 설정
-        Transform piece = Instantiate(piecePrafab, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
-        piece.GetComponent<MeshRenderer>().material = GameManager.Instance.turn ? turnTrueColor : turnFalseColor;
+        Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.testForTrueIndex) : GetCharacterPiece(GameManager.Instance.testForFalseIndex);
+        Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
         piece.GetComponent<Piece>().SetNode(node);
         node.currentPiece = piece.GetComponent<Piece>();
 
@@ -193,6 +215,8 @@ public class BoardManager : MonoBehaviour
         {
             GameManager.Instance.ChangeTurn();
         }
+
+        isAiStart = false;
     }
 
     //피스를 삭제하는 동작
@@ -231,7 +255,7 @@ public class BoardManager : MonoBehaviour
                     truePieceList.Remove(selectNode.pieceInfo);
                 }
 
-                Destroy(selectNode.currentPiece.gameObject);
+                DestroyImmediate(selectNode.currentPiece.gameObject);
                 selectNode.pieceInfo.SetNode(null);
                 selectNode.pieceInfo = null;
                 selectNode.currentPiece = null;
@@ -256,6 +280,8 @@ public class BoardManager : MonoBehaviour
                 if (Physics.Raycast(ray, out hitInfo, 1000, nodeMask))
                 {
                     selectNodeInMove = hitInfo.transform.GetComponent<Node>();
+
+                    if (selectNodeInMove.pieceInfo == null) return;
 
                     //해당 턴의 주인이 자신의 말을 골랐을 때, 제대로 선택되었음을 확인
                     if (selectNodeInMove.pieceInfo.GetOwner() == GameManager.Instance.turn)
@@ -365,9 +391,10 @@ public class BoardManager : MonoBehaviour
                     //해당 노드에 피스가 이미 있을 시 무시
                     if (node.pieceInfo != null) return;
 
+                    Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.testForTrueIndex) : GetCharacterPiece(GameManager.Instance.testForFalseIndex);
+
                     //아니라면 피스를 생성하고 설정
-                    Transform piece = Instantiate(piecePrafab, new Vector3(hitInfo.transform.position.x, 0.3f, hitInfo.transform.position.z), Quaternion.identity);
-                    piece.GetComponent<MeshRenderer>().material = GameManager.Instance.turn ? turnTrueColor : turnFalseColor;
+                    Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
                     piece.GetComponent<Piece>().SetNode(node);
                     node.currentPiece = piece.GetComponent<Piece>();
 
@@ -406,6 +433,11 @@ public class BoardManager : MonoBehaviour
         }
     }
 
+    private Transform GetCharacterPiece(int characterIndex)
+    {
+        return Resources.Load<Transform>("Prefabs/Piece_" + characterIndex.ToString());
+    }
+
     //Delete Piece 단계의 플레이어 로직
     private void PlayerDeletePiece()
     {
@@ -434,7 +466,7 @@ public class BoardManager : MonoBehaviour
                         }
 
                         selectNode.pieceInfo.SetNode(null);
-                        Destroy(selectNode.currentPiece.gameObject);
+                        DestroyImmediate(selectNode.currentPiece.gameObject);
                         selectNode.currentPiece = null;
                         selectNode.pieceInfo = null;
 
@@ -1152,11 +1184,11 @@ public class BoardManager : MonoBehaviour
     {
         if(turn)
         {
-            if (GameManager.Instance.totalTruePiece == 3) return true;
+            if (GameManager.Instance.totalTruePiece == 3) return false;
         }
         else
         {
-            if (GameManager.Instance.totalFalsePiece == 3) return true;
+            if (GameManager.Instance.totalFalsePiece == 3) return false;
         }
 
 

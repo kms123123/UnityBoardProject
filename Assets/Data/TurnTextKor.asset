@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31913512545527f408c8958bc74783f5, type: 3}
+  m_Name: TurnTextKor
+  m_EditorClassIdentifier: 
+  player1Text: "1P\uC758 \uD134\uC785\uB2C8\uB2E4"
+  player2Text: "2P\uC758 \uD134\uC785\uB2C8\uB2E4"
+  AIText: "AI\uAC00 \uB2E4\uC74C\uC758 \uC218\uB97C \uACC4\uC0B0\uD569\uB2C8\uB2E4"
+  myText: "\uB2F9\uC2E0\uC758 \uD134\uC785\uB2C8\uB2E4"
+  opponentText: "\uC0C1\uB300\uC758 \uD134\uC785\uB2C8\uB2E4"
