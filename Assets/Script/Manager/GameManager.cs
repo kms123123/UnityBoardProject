@@ -51,7 +51,7 @@ public class GameManager : MonoBehaviour
         turnNumbers = 1;
     }
 
-    private void GameManager_OnMoveEnd(object sender, System.EventArgs e)
+    private void GameManager_OnMoveEnd(object sender, Node e)
     {
         //Move가 끝날 시 3피스 상태였다면, 움직임 횟수 추가
         if (turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves++;
@@ -69,7 +69,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void GameManager_OnDeletePieceEnd(object sender, bool turn)
+    private void GameManager_OnDeletePieceEnd(object sender, DeletePieceEventArgs deleteArgs)
     {
         if (!IsGameOver())
         {
@@ -147,7 +147,7 @@ public class GameManager : MonoBehaviour
         return turnTrueHavetoPut > 0 || turnFalseHavetoPut > 0;
     }
 
-    private void GameManager_OnPutPiece(object sender, System.EventArgs e)
+    private void GameManager_OnPutPiece(object sender, Node e)
     {
         if(!IsGameOver())
         {

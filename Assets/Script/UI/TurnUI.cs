@@ -1,9 +1,9 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
-public class TurnUIManager : MonoBehaviour
+public class TurnUI : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI turnNumberText;
     [SerializeField] TextMeshProUGUI whosTurnText;
@@ -23,13 +23,13 @@ public class TurnUIManager : MonoBehaviour
 
     private void InitTurnUI()
     {
-        turnNumberText.text = "1ÅÏ:";
+        turnNumberText.text = "1í„´:";
         ChangeTurnTextByCurrentTurn();
     }
 
     private void TurnUIManager_OnTurnChanged(object sender, System.EventArgs e)
     {
-        turnNumberText.text = GameManager.Instance.turnNumbers.ToString() + "ÅÏ:";
+        turnNumberText.text = GameManager.Instance.turnNumbers.ToString() + "í„´:";
         ChangeTurnTextByCurrentTurn();
         ChangeFontColor();
     }
@@ -59,7 +59,7 @@ public class TurnUIManager : MonoBehaviour
                 }
                 break;
             case GameManager.EGameMode.PVPNet:
-                //Todo: ³×Æ®¿öÅ© °ü·Ã ·ÎÁ÷ ¼³Á¤ ÈÄ ÅØ½ºÆ® ¼³Á¤ ÇÊ¿ä
+                //Todo: ë„¤íŠ¸ì›Œí¬ ê´€ë ¨ ë¡œì§ ì„¤ì • í›„ í…ìŠ¤íŠ¸ ì„¤ì • í•„ìš”
                 break;
         }
     }

@@ -9,6 +9,11 @@ public class Node : MonoBehaviour
     public Piece currentPiece;
     public PieceInfo pieceInfo;
 
+    [Header("Debugging Test")]
+    public bool isOwned;
+    public bool isMatched;
+    public bool whoOwned;
+
     private void Start()
     {
         BoardManager.instance.gameBoard.Add(this);
@@ -24,11 +29,21 @@ public class Node : MonoBehaviour
 
     private void Update()
     {
-        if(Input.GetKeyDown(KeyCode.T))
+
+        if (pieceInfo != null) isOwned = true;
+        else isOwned = false;
+
+        if(isOwned)
         {
-            if(pieceInfo !=null)
-            Debug.Log(gameObject.name + " has " + pieceInfo.GetOwner());
+            whoOwned = pieceInfo.GetOwner();
+            isMatched = pieceInfo.GetbMatch();
         }
+        else
+        {
+            whoOwned=false;
+            isMatched = false;
+        }
+        
     }
 
 }

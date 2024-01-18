@@ -75,6 +75,13 @@ public class Check3MatchManager : MonoBehaviour
             }
         }
 
+        foreach(ListWrapper match3 in current3MatchCombinations)
+        {
+            match3.list[0].pieceInfo.is3Match = true;
+            match3.list[1].pieceInfo.is3Match = true;
+            match3.list[2].pieceInfo.is3Match = true;
+        }
+
         return flag;
     }
 
