@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
 
     public event EventHandler OnTurnChanged;
+    public event EventHandler<bool> OnGameIsOver;
 
-    public enum EGameState { Ready, Start, Putting, Move, Delete, Finish }
+    public enum EGameState { Ready, Start, Putting, Move, Delete, Finish, Result }
     public enum EGameMode { PVPNet, PVPLocal, PVE }
 
     public static GameManager Instance;
@@ -113,6 +116,11 @@ public class GameManager : MonoBehaviour
             case EGameState.Delete:
                 break;
             case EGameState.Finish:
+                //게임 종료시 게임종료 델리게이트 실행
+                OnGameIsOver?.Invoke(this, CheckWinner());
+                SetState(EGameState.Result);
+                break;
+            case EGameState.Result:
                 break;
         }
 
@@ -244,6 +252,12 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        //턴이 전환될때 선택가능 표식을 지운다.
+        foreach(Node node in BoardManager.instance.gameBoard)
+        {
+            node.DisableSelectObj();
+        }
+
         OnTurnChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -258,4 +272,25 @@ public class GameManager : MonoBehaviour
         if (turn && IsTurnTrueHas3Pieces()) turnTrue3PiecesMoves = 0;
         else if (!turn && IsTurnFalseHas3Pieces()) turnFalse3PiecesMoves = 0;
     }
+
+    public void RestartGame()
+    {
+        StartCoroutine(LoadInGameScene());
+    }
+
+    private IEnumerator LoadInGameScene()
+    {
+        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("InGame");
+
+        while (!asyncLoad.isDone)
+        {
+            yield return null;
+        }
+    }
+
+    public void ExitGame()
+    {
+        Debug.Log("Exit!");
+    }
 }
+

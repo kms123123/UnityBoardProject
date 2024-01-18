@@ -9,6 +9,9 @@ public class Node : MonoBehaviour
     public Piece currentPiece;
     public PieceInfo pieceInfo;
 
+    [SerializeField] private GameObject CanSelectObj;
+    [SerializeField] private GameObject CannotSelectObj;
+
     [Header("Debugging Test")]
     public bool isOwned;
     public bool isMatched;
@@ -44,6 +47,24 @@ public class Node : MonoBehaviour
             isMatched = false;
         }
         
+    }
+
+    public void CanSelectNode()
+    {
+        CannotSelectObj.SetActive(false);
+        CanSelectObj.SetActive(true);
+    }
+
+    public void CannotSelectNode()
+    {
+        CannotSelectObj.SetActive(true);
+        CanSelectObj.SetActive(false);
+    }
+
+    public void DisableSelectObj()
+    {
+        CannotSelectObj.SetActive(false);
+        CanSelectObj.SetActive(false);
     }
 
 }

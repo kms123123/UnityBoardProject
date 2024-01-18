@@ -11,8 +11,8 @@ public class TurnUI : MonoBehaviour
     [SerializeField] Color GreenFontColor;
     [SerializeField] Color RedFontColor;
 
-    [SerializeField] TurnTextData turnTextDataKor;
-    TurnTextData currentTextData;
+    [SerializeField] GameModeTextData turnTextDataKor;
+    GameModeTextData currentTextData;
 
     private void Start()
     {
