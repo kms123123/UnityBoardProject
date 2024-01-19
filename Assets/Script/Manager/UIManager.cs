@@ -1,5 +1,8 @@
-﻿using TMPro;
+﻿using System.Data.Common;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
@@ -9,6 +12,13 @@ public class UIManager : MonoBehaviour
     [SerializeField] TextMeshProUGUI resultText;
     [SerializeField] GameObject resultWindowUIObject;
     [SerializeField] GameModeTextData resultTextDataKor;
+    [SerializeField] GameObject optionWindowUIObject;
+
+    [SerializeField] Slider BGMSlider;
+    [SerializeField] Slider SFXSlider;
+    [SerializeField] AudioMixer audioMixer;
+
+    [SerializeField] float multiplier;
 
     private void Start()
     {
@@ -150,5 +160,51 @@ public class UIManager : MonoBehaviour
             trueStatusUI.DisableAllImage();
             falseStatusUI.OpenMoveImage();
         }
+    }
+
+    public void OptionButtonPressed()
+    {
+        if (!optionWindowUIObject.activeSelf) OpenOptionWindow();
+        else CloseOptionWindow();
+    }
+
+    //옵션 창 오픈
+    private void OpenOptionWindow()
+    {
+        optionWindowUIObject.SetActive(true);
+        optionWindowUIObject.GetComponent<Animator>().SetTrigger("Button");
+    }
+
+    //옵션 창 닫음. 애니메이션이 모두 끝나야 비활성화 시킴
+    public void CloseOptionWindow()
+    {
+        optionWindowUIObject.GetComponent<Animator>().SetTrigger("Button");
+    }
+
+    public void HomeButtonPressed()
+    {
+        Debug.Log("Exit!");
+    }
+
+    public void BGMSliderValue(float value)
+    {
+        value = Mathf.Clamp(value, 0.001f, 1f);
+        audioMixer.SetFloat("BGM", Mathf.Log10(value) * multiplier);
+    }
+    public void SFXSliderValue(float value)
+    {
+        value = Mathf.Clamp(value, 0.001f, 1f);
+        audioMixer.SetFloat("SFX", Mathf.Log10(value) * multiplier);
+    }
+
+    public void LoadBGMSlider(float value)
+    {
+        if (value >= 0.001f)
+            BGMSlider.value = value;
+    }
+    public void LoadSFXSlider(float value)
+    {
+        if (value >= 0.001f)
+            SFXSlider.value = value;
     }
 }

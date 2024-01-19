@@ -6,6 +6,8 @@ using Unity.VisualScripting;
 using UnityEditor.Experimental.GraphView;
 using UnityEditor.PackageManager;
 using UnityEngine;
+using UnityEngine.EventSystems;
+
 public class DeletePieceEventArgs : EventArgs
 {
     public bool turn;
@@ -325,8 +327,10 @@ public class BoardManager : MonoBehaviour
     //Move Piece 단계의 플레이어 로직
     private void PlayerMovePiece()
     {
+
         if (Input.GetMouseButtonDown(0))
         {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
             //BeforePick: 피스를 선택하는 단계
             if (moveState == MoveState.BeforePick)
             {
@@ -413,6 +417,11 @@ public class BoardManager : MonoBehaviour
                     {
                         moveState = MoveState.BeforePick;
                         selectNodeInMove = null;
+
+                        foreach (Node node in gameBoard)
+                        {
+                            node.DisableSelectObj();
+                        }
                     }
 
                     //같은 팀의 피스일 경우, 그 피스를 선택
@@ -430,11 +439,16 @@ public class BoardManager : MonoBehaviour
     //이동가능한 노드에 표식을 한다.
     private void FindAllNodesCanMove(bool turn, Node selectNode)
     {
-        if(turn && GameManager.Instance.totalTruePiece == 3)
+        foreach (Node node in gameBoard)
+        {
+            node.DisableSelectObj();
+        }
+
+        if (turn && GameManager.Instance.totalTruePiece == 3)
         {
             foreach(Node node in gameBoard)
             {
-                if(node.pieceInfo == null)
+                if (node.pieceInfo == null)
                 {
                     node.CanSelectNode();
                 }
@@ -469,6 +483,8 @@ public class BoardManager : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit hitInfo;
             if (Physics.Raycast(ray, out hitInfo))
@@ -537,10 +553,10 @@ public class BoardManager : MonoBehaviour
     //Delete Piece 단계의 플레이어 로직
     private void PlayerDeletePiece()
     {
-
-
         if (Input.GetMouseButtonDown(0))
         {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit hitInfo;
             if (Physics.Raycast(ray, out hitInfo, 1000, nodeMask))
