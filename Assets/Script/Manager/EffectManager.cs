@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Cinemachine;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +11,8 @@ public class EffectManager : MonoBehaviour
     [SerializeField] List<Transform> explosionRagdollPrefabs;
     private int prefabIndex;
     [SerializeField] private float explosionForce;
+
+    [SerializeField] CinemachineImpulseSource impulseSource;
 
     private void Start()
     {
@@ -60,5 +63,8 @@ public class EffectManager : MonoBehaviour
         ragdoll.GetComponentInChildren<Rigidbody>().AddExplosionForce(explosionForce, explodePosition, 5f);
         ragdoll.GetComponentInChildren<Rigidbody>().AddTorque(Random.Range(-25, 25), Random.Range(-25, 25), Random.Range(-25, 25));
         Destroy(ragdoll.gameObject, 5f);
+
+        //폭발로 인한 카메라 흔들림 효과
+        impulseSource.GenerateImpulse();
     }
 }
