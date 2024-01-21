@@ -23,13 +23,13 @@ public class TurnUI : MonoBehaviour
 
     private void InitTurnUI()
     {
-        turnNumberText.text = "1턴:";
+        turnNumberText.text = "Turn 1:";
         ChangeTurnTextByCurrentTurn();
     }
 
     private void TurnUIManager_OnTurnChanged(object sender, System.EventArgs e)
     {
-        turnNumberText.text = GameManager.Instance.turnNumbers.ToString() + "턴:";
+        turnNumberText.text = "Turn " + GameManager.Instance.turnNumbers.ToString() + ":";
         ChangeTurnTextByCurrentTurn();
         ChangeFontColor();
     }

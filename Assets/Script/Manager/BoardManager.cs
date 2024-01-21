@@ -218,7 +218,7 @@ public class BoardManager : MonoBehaviour
         yield return new WaitForSeconds(randomTime);
 
         //아니라면 피스를 생성하고 설정
-        Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.testForTrueIndex) : GetCharacterPiece(GameManager.Instance.testForFalseIndex);
+        Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.truePieceIndex) : GetCharacterPiece(GameManager.Instance.falsePieceIndex);
         Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
         piece.GetComponent<Piece>().SetNode(node);
         node.currentPiece = piece.GetComponent<Piece>();
@@ -496,7 +496,7 @@ public class BoardManager : MonoBehaviour
                     //해당 노드에 피스가 이미 있을 시 무시
                     if (node.pieceInfo != null) return;
 
-                    Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.testForTrueIndex) : GetCharacterPiece(GameManager.Instance.testForFalseIndex);
+                    Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.truePieceIndex) : GetCharacterPiece(GameManager.Instance.falsePieceIndex);
 
                     //아니라면 피스를 생성하고 설정
                     Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);

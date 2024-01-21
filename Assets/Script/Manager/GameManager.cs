@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using Unity.Networking.Transport;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,8 +18,8 @@ public class GameManager : MonoBehaviour
     public bool turn { get; private set; }
     public int turnNumbers;
 
-    public EGameState state { get; private set; }
-    public EGameMode gameMode { get; private set; }
+    public EGameState state;
+    public EGameMode gameMode;
 
     public int turnTrueHavetoPut = 9;
     public int turnFalseHavetoPut = 9;
@@ -32,8 +33,12 @@ public class GameManager : MonoBehaviour
     public UserInfo player1UserInfo;
     public UserInfo player2UserInfo;
 
-    public int testForTrueIndex;
-    public int testForFalseIndex;
+    public int truePieceIndex;
+    public int falsePieceIndex;
+
+    // Multi Logic
+    private int playerCount = -1;
+    private int currentTeam = -1;
 
     private void Awake()
     {
@@ -41,6 +46,8 @@ public class GameManager : MonoBehaviour
         Instance = this;
 
         turn = true;
+
+        RegisterEvents();
     }
 
     private void Start()
@@ -50,8 +57,6 @@ public class GameManager : MonoBehaviour
         BoardManager.instance.OnMoveEnd += GameManager_OnMoveEnd;
 
         state = EGameState.Ready;
-        gameMode = EGameMode.PVPLocal;
-        turnNumbers = 1;
     }
 
     private void GameManager_OnMoveEnd(object sender, Node e)
@@ -130,12 +135,28 @@ public class GameManager : MonoBehaviour
     //Todo: Ready구현해야함
     public void Update_Ready()
     {
-        state = EGameState.Start;
+        
     }
 
     //Todo: Start구현해야함
     public void Update_Start()
     {
+        //턴정보 초기화
+        turnNumbers = 1;
+
+        //피스 랜덤으로 설정해줌
+        truePieceIndex = UnityEngine.Random.Range(1, 5);
+        falsePieceIndex = UnityEngine.Random.Range(1, 5);
+        if(truePieceIndex == falsePieceIndex)
+        {
+            falsePieceIndex++;
+            if(falsePieceIndex == 5)
+            {
+                falsePieceIndex = 1;
+            }
+        }
+
+        //게임시작
         state = EGameState.Putting;
     }
 
@@ -291,6 +312,83 @@ public class GameManager : MonoBehaviour
     public void ExitGame()
     {
         Debug.Log("Exit!");
+    }
+
+    private void RegisterEvents()
+    {
+        NetUtility.S_WELCOME += OnWelcomeServer;
+        NetUtility.S_MAKE_MOVE += OnMakeMoveServer;
+
+        NetUtility.C_WELCOME += OnWelcomeClient;
+        NetUtility.C_START_GAME += OnStartGameClient;
+        NetUtility.C_MAKE_MOVE += OnMakeMoveClient;
+    }
+
+ 
+
+    private void UnRegisterEvents()
+    {
+        NetUtility.S_WELCOME -= OnWelcomeServer;
+        NetUtility.S_MAKE_MOVE -= OnMakeMoveServer;
+
+        NetUtility.C_WELCOME -= OnWelcomeClient;
+        NetUtility.C_START_GAME -= OnStartGameClient;
+        NetUtility.C_MAKE_MOVE -= OnMakeMoveClient;
+    }
+
+    private void OnWelcomeServer(NetMessage msg, NetworkConnection cnn)
+    {
+        // Client has connected, assign a team and return the message back to him
+        NetWelcome nw = msg as NetWelcome;
+
+        // Assign a team
+        nw.assignedTeam = ++playerCount;
+
+        // Return back to the client
+        Server.instance.SendToClient(cnn, nw);
+        
+
+        //If full, Start the game
+        if(playerCount == 1)
+        {
+            Server.instance.BroadCast(new NetStartGame());
+        }
+    }
+
+    private void OnWelcomeClient(NetMessage msg)
+    {
+        // Receive the connection message
+        NetWelcome nw = msg as NetWelcome;
+
+        // Assign the team
+        currentTeam = nw.assignedTeam;
+
+        Debug.Log($"My Assigned team is {nw.assignedTeam}");
+    }
+
+    private void OnStartGameClient(NetMessage obj)
+    {
+        // We just need to change the camera
+    }
+
+    private void OnMakeMoveServer(NetMessage msg, NetworkConnection cnn)
+    {
+        NetMakeMove mm = msg as NetMakeMove;
+
+        // Receive and just broadcast it back
+        Server.instance.BroadCast(mm);
+    }
+
+    private void OnMakeMoveClient(NetMessage msg)
+    {
+        NetMakeMove mm = msg as NetMakeMove;
+
+        Debug.Log($"MM: {mm.teamId} : {mm.startIndex} -> {mm.endIndex} | {mm.removeIndex} in {mm.gameState}");
+
+        if(mm.teamId != currentTeam)
+        {
+            //MoveTo 로직
+        }
     }
 }
 

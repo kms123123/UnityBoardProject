@@ -50,11 +50,11 @@ public class EffectManager : MonoBehaviour
 
         if(e.turn)
         {
-            prefabIndex = GameManager.Instance.testForFalseIndex - 1;
+            prefabIndex = GameManager.Instance.falsePieceIndex - 1;
         }
         else
         {
-            prefabIndex = GameManager.Instance.testForTrueIndex - 1;
+            prefabIndex = GameManager.Instance.truePieceIndex - 1;
         }
 
         Transform ragdoll = Instantiate(explosionRagdollPrefabs[prefabIndex], deleteNode.transform.position + new Vector3(0, 1f, 0), Quaternion.identity);
