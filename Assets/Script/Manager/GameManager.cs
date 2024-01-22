@@ -9,6 +9,10 @@ public class GameManager : MonoBehaviour
 
     public event EventHandler OnTurnChanged;
     public event EventHandler<bool> OnGameIsOver;
+    public event EventHandler OnGameStart;
+
+    public Server server;
+    public Client client;
 
     public enum EGameState { Ready, Start, Putting, Move, Delete, Finish, Result }
     public enum EGameMode { PVPNet, PVPLocal, PVE }
@@ -44,8 +48,6 @@ public class GameManager : MonoBehaviour
     {
         if (Instance != null) return;
         Instance = this;
-
-        turn = true;
 
         RegisterEvents();
     }
@@ -138,12 +140,25 @@ public class GameManager : MonoBehaviour
         
     }
 
-    //Todo: Start구현해야함
     public void Update_Start()
     {
         //턴정보 초기화
         turnNumbers = 1;
+        turn = true;
+        totalTruePiece = 0;
+        totalFalsePiece = 0;
+        turnTrueHavetoPut = 9;
+        turnFalseHavetoPut = 9;
+        turnTrue3PiecesMoves = 0;
+        turnFalse3PiecesMoves = 0;
 
+        //Todo: 보드초기화, UI 활성화 및 초기화 필요
+        /**
+         * BoardManager: 보드 초기화
+         * CameraController: 카메라 위치 초기화
+         * */
+        OnGameStart?.Invoke(this, EventArgs.Empty);
+            
         //피스 랜덤으로 설정해줌
         truePieceIndex = UnityEngine.Random.Range(1, 5);
         falsePieceIndex = UnityEngine.Random.Range(1, 5);
@@ -296,22 +311,31 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        StartCoroutine(LoadInGameScene());
-    }
-
-    private IEnumerator LoadInGameScene()
-    {
-        AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("InGame");
-
-        while (!asyncLoad.isDone)
-        {
-            yield return null;
-        }
+        state = EGameState.Start;
     }
 
     public void ExitGame()
     {
-        Debug.Log("Exit!");
+        state = EGameState.Ready;
+        WorldUIManager.instance.StopAllWorldCameraAndCanvas();
+        WorldUIManager.instance.GoToMainCanvas();
+    }
+
+    public void OnOnlineHostButton()
+    {
+        server.Init(8007);
+        client.Init("127.0.0.1", 8007);
+    }
+
+    public void OnOnlineConnectButton()
+    {
+        client.Init(WorldUIManager.instance.addressInput.text, 8007);
+    }
+
+    public void OnHostBackButton()
+    {
+        server.ShutDown();
+        client.ShutDown();
     }
 
     private void RegisterEvents()
@@ -323,8 +347,6 @@ public class GameManager : MonoBehaviour
         NetUtility.C_START_GAME += OnStartGameClient;
         NetUtility.C_MAKE_MOVE += OnMakeMoveClient;
     }
-
- 
 
     private void UnRegisterEvents()
     {
@@ -368,7 +390,12 @@ public class GameManager : MonoBehaviour
 
     private void OnStartGameClient(NetMessage obj)
     {
-        // We just need to change the camera
+        // Game Start on Client
+        gameMode = EGameMode.PVPNet;
+        state = EGameState.Start;
+        GameManager.Instance.isAiMode = false;
+        BoardManager.instance.isAiMove = false;
+        WorldUIManager.instance.StopAllWorldCameraAndCanvas();
     }
 
     private void OnMakeMoveServer(NetMessage msg, NetworkConnection cnn)

@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
+    public static UIManager instance;
+
     [SerializeField] TurnUI turnUI;
     [SerializeField] StatusUI trueStatusUI;
     [SerializeField] StatusUI falseStatusUI;
@@ -20,6 +22,11 @@ public class UIManager : MonoBehaviour
 
     [SerializeField] float multiplier;
 
+    private void Awake()
+    {
+        instance = this;
+    }
+
     private void Start()
     {
         BoardManager.instance.OnMoveEnd += UIManager_OnMoveEnd;
@@ -27,8 +34,30 @@ public class UIManager : MonoBehaviour
         BoardManager.instance.OnDeletePieceStart += UIManager_OnDeletePieceStart;
         BoardManager.instance.OnDeletePieceEnd += UIManager_OnDeletePieceEnd;
         GameManager.Instance.OnGameIsOver += UIManager_OnGameIsOver;
+        GameManager.Instance.OnGameStart += UIManager_OnGameStart;
+    }
 
+    private void UIManager_OnGameStart(object sender, System.EventArgs e)
+    {
+        TurnOnUI();
+    }
+
+    private void TurnOnUI()
+    {
+        turnUI.gameObject.SetActive(true);
+        trueStatusUI.gameObject.SetActive(true);
+        falseStatusUI.gameObject.SetActive(true);
+        turnUI.InitTurnUI();
+        trueStatusUI.DisableAllImage();
+        falseStatusUI.DisableAllImage();
         trueStatusUI.OpenPutImage();
+    }
+
+    private void TurnOffUI()
+    {
+        turnUI.gameObject.SetActive(false);
+        trueStatusUI.gameObject.SetActive(false);
+        falseStatusUI.gameObject.SetActive(false);
     }
 
     private void Update()
@@ -42,6 +71,7 @@ public class UIManager : MonoBehaviour
 
     private void UIManager_OnGameIsOver(object sender, bool turn)
     {
+        TurnOffUI();
         resultWindowUIObject.SetActive(true);
         if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPNet)
         {
@@ -183,7 +213,16 @@ public class UIManager : MonoBehaviour
 
     public void HomeButtonPressed()
     {
-        Debug.Log("Exit!");
+        WorldUIManager.instance.StopAllWorldCameraAndCanvas();
+        WorldUIManager.instance.GoToMainCanvas();
+        TurnOffUI();
+        GameManager.Instance.state = GameManager.EGameState.Ready;
+    }
+
+    public void CloseResultWindow()
+    {
+        resultWindowUIObject.GetComponent<CanvasGroup>().alpha = 0;
+        resultWindowUIObject.SetActive(false);
     }
 
     public void BGMSliderValue(float value)

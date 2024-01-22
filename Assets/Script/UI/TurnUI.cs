@@ -11,20 +11,19 @@ public class TurnUI : MonoBehaviour
     [SerializeField] Color GreenFontColor;
     [SerializeField] Color RedFontColor;
 
-    [SerializeField] GameModeTextData turnTextDataKor;
-    GameModeTextData currentTextData;
+    [SerializeField] GameModeTextData currentTextData;
 
     private void Start()
     {
         GameManager.Instance.OnTurnChanged += TurnUIManager_OnTurnChanged;
-        currentTextData = turnTextDataKor;
         InitTurnUI();
     }
 
-    private void InitTurnUI()
+    public void InitTurnUI()
     {
         turnNumberText.text = "Turn 1:";
         ChangeTurnTextByCurrentTurn();
+        whosTurnText.color = GreenFontColor;
     }
 
     private void TurnUIManager_OnTurnChanged(object sender, System.EventArgs e)

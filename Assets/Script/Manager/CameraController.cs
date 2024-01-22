@@ -15,10 +15,21 @@ public class CameraController : MonoBehaviour
     private void Start()
     {
         totalCameraCounts = cameraPoints.Count;
+
+        GameManager.Instance.OnGameStart += CameraController_OnGameStart;
+    }
+
+    private void CameraController_OnGameStart(object sender, System.EventArgs e)
+    {
+        ResetCameraPriorities();
+        currentCameraIndex = 0;
+        CameraOn(currentCameraIndex);
     }
 
     private void Update()
     {
+        if (GameManager.Instance.state == GameManager.EGameState.Ready) return;
+
         if (Input.GetKeyDown(KeyCode.Q))
         {
             if (isTopDownOn) return;

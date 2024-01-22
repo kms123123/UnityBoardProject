@@ -2,9 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Mathematics;
-using Unity.VisualScripting;
-using UnityEditor.Experimental.GraphView;
-using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -16,7 +13,7 @@ public class DeletePieceEventArgs : EventArgs
 
 public class BoardManager : MonoBehaviour
 {
-    
+
 
     public event EventHandler<Node> OnPutPiece;
     public event EventHandler<Node> OnDeletePieceStart;
@@ -28,14 +25,7 @@ public class BoardManager : MonoBehaviour
     public List<Node> gameBoard = new List<Node>();
     [SerializeField] private Transform piecePrafab;
 
-    [SerializeField] private Material turnTrueColor;
-    [SerializeField] private Material turnFalseColor;
-    [SerializeField] private Material selectedColor;
-    [SerializeField] private Material canSelectColor;
-    [SerializeField] private Material cannotSelectColor;
-
     [SerializeField] private LayerMask nodeMask;
-    [SerializeField] private GameObject tempPieceObj;
 
     public enum MoveState { BeforePick, AfterPick };
 
@@ -67,7 +57,36 @@ public class BoardManager : MonoBehaviour
         truePieceList = new List<PieceInfo>();
         falsePieceList = new List<PieceInfo>();
 
-        isAiTurnTrue = isAiMove;
+        GameManager.Instance.OnGameStart += BoardManager_OnGameStart;
+    }
+
+    private void BoardManager_OnGameStart(object sender, EventArgs e)
+    {
+        CleanUpBoard();
+    }
+
+    //게임 시작할때 보드를 모두 청소하고 시작
+    public void CleanUpBoard()
+    {
+        for (int i = 0; i < gameBoard.Count; i++)
+        {
+            gameBoard[i].DisableSelectObj();
+
+            if (gameBoard[i].currentPiece != null)
+            {
+                Destroy(gameBoard[i].currentPiece.gameObject);
+                gameBoard[i].currentPiece = null;
+            }
+
+            if (gameBoard[i].pieceInfo != null)
+            {
+                gameBoard[i].pieceInfo = null;
+            }
+        }
+
+        truePieceList.Clear();
+        falsePieceList.Clear();
+        Check3MatchManager.instance.current3MatchCombinations.Clear();
     }
 
     private void Update()
@@ -99,7 +118,7 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            if(!isAiStart)
+            if (!isAiStart)
             {
                 StartCoroutine(AIMovePiece());
                 isAiStart = true;
@@ -164,15 +183,15 @@ public class BoardManager : MonoBehaviour
     private bool FindAllNodesCanbeDelete(bool turn)
     {
         int count = 0;
-        foreach(Node node in gameBoard)
+        foreach (Node node in gameBoard)
         {
             node.DisableSelectObj();
 
-            if(node.pieceInfo != null)
+            if (node.pieceInfo != null)
             {
-                if(node.pieceInfo.GetOwner() != turn)
+                if (node.pieceInfo.GetOwner() != turn)
                 {
-                    if(!node.pieceInfo.GetbMatch())
+                    if (!node.pieceInfo.GetbMatch())
                     {
                         node.CanSelectNode();
                         count++;
@@ -202,7 +221,7 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            if(!isAiStart)
+            if (!isAiStart)
             {
                 StartCoroutine(AIPutPiece());
                 isAiStart = true;
@@ -275,7 +294,7 @@ public class BoardManager : MonoBehaviour
 
         else
         {
-            if(!isAiStart)
+            if (!isAiStart)
             {
                 StartCoroutine(AIDeletePiece());
                 isAiStart = true;
@@ -446,7 +465,7 @@ public class BoardManager : MonoBehaviour
 
         if (turn && GameManager.Instance.totalTruePiece == 3)
         {
-            foreach(Node node in gameBoard)
+            foreach (Node node in gameBoard)
             {
                 if (node.pieceInfo == null)
                 {
@@ -455,7 +474,7 @@ public class BoardManager : MonoBehaviour
             }
         }
 
-        else if(!turn && GameManager.Instance.totalFalsePiece == 3)
+        else if (!turn && GameManager.Instance.totalFalsePiece == 3)
         {
             foreach (Node node in gameBoard)
             {
@@ -467,8 +486,8 @@ public class BoardManager : MonoBehaviour
         }
 
         else
-        { 
-            foreach(Node node in selectNode.linkedNodes)
+        {
+            foreach (Node node in selectNode.linkedNodes)
             {
                 if (node.pieceInfo == null)
                 {
@@ -671,7 +690,7 @@ public class BoardManager : MonoBehaviour
         }
 
         //Move state일 시
-        else if(state == GameManager.EGameState.Move)
+        else if (state == GameManager.EGameState.Move)
         {
             for (int i = 0; i < gameBoard.Count; i++)
             {
@@ -733,7 +752,7 @@ public class BoardManager : MonoBehaviour
 
                         if (nextNode.pieceInfo != null) continue;
 
-                        for(int z = 0; z < gameBoard.Count; z++)
+                        for (int z = 0; z < gameBoard.Count; z++)
                         {
                             if (gameBoard[z] == nextNode)
                             {
@@ -1040,7 +1059,7 @@ public class BoardManager : MonoBehaviour
         Node endNode = gameBoard[move.endIndex];
         if (endNode.pieceInfo != null)
         {
-            if(move.removeIndex != -1)
+            if (move.removeIndex != -1)
             {
                 Check3MatchManager.instance.Check3MatchAndDeleteFlag(endNode);
             }
@@ -1130,7 +1149,7 @@ public class BoardManager : MonoBehaviour
                     UndoPut(move, turn, gameBoard);
                 }
 
-                if(state == GameManager.EGameState.Move)
+                if (state == GameManager.EGameState.Move)
                 {
                     DoMove(move, turn, gameBoard);
 
@@ -1300,7 +1319,7 @@ public class BoardManager : MonoBehaviour
     //리스트의 피스를 탐색하면서, 모든 피스가 이동 불가능 상태라면(연결된 노드가 모두 주인이 있다면) true
     public bool IsCantMove(bool turn)
     {
-        if(turn)
+        if (turn)
         {
             if (GameManager.Instance.totalTruePiece == 3) return false;
         }

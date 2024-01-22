@@ -1,12 +1,15 @@
 using Cinemachine;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using static GameManager;
 
 public class WorldUIManager : MonoBehaviour
 {
+    public static WorldUIManager instance;
+
     [SerializeField] CinemachineVirtualCamera introCamera;
     [SerializeField] CinemachineVirtualCamera localCamera;
     [SerializeField] CinemachineVirtualCamera tutoCamera;
@@ -20,6 +23,12 @@ public class WorldUIManager : MonoBehaviour
     [SerializeField] GameObject waitingCanvas;
 
     [SerializeField] Toggle playerFirstinPVE;
+    public TMP_InputField addressInput;
+
+    private void Awake()
+    {
+        instance = this;
+    }
 
     private void Start()
     {
@@ -31,7 +40,7 @@ public class WorldUIManager : MonoBehaviour
     {
         introCamera.Priority = 1;
         localCamera.Priority = 1;
-        waitingCamera.Priority = 1;
+        tutoCamera.Priority = 1;
         onlineCamera.Priority = 1;
         waitingCamera.Priority = 1;
         mainCanvas.SetActive(false);
@@ -60,6 +69,7 @@ public class WorldUIManager : MonoBehaviour
         StopAllWorldCameraAndCanvas();
         tutoCanvas.SetActive(true);
         tutoCamera.Priority = 20;
+        tutoCanvas.GetComponent<TutorialWorldUI>().InitializeTuto();
     }
 
     public void GoToOnlineCanvas()
