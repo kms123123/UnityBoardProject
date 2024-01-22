@@ -113,7 +113,15 @@ public class BoardManager : MonoBehaviour
         //플레이어 턴일 시
         if (!isAiMove)
         {
-            PlayerMovePiece();
+
+            if (GameManager.Instance.gameMode == GameManager.EGameMode.PVPNet)
+            {
+                OnlineMovePiece();
+            }
+            else if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPLocal)
+            {
+                PlayerMovePiece();
+            }
         }
 
         else
@@ -126,6 +134,139 @@ public class BoardManager : MonoBehaviour
         }
     }
 
+    private void OnlineMovePiece()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+            if (GameManager.Instance.turn && GameManager.Instance.currentTeam == 1) return;
+            if (!GameManager.Instance.turn && GameManager.Instance.currentTeam == 0) return;
+
+            //BeforePick: 피스를 선택하는 단계
+            if (moveState == MoveState.BeforePick)
+            {
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfo;
+                if (Physics.Raycast(ray, out hitInfo, 1000, nodeMask))
+                {
+                    selectNodeInMove = hitInfo.transform.GetComponent<Node>();
+
+                    if (selectNodeInMove.pieceInfo == null) return;
+
+                    //해당 턴의 주인이 자신의 말을 골랐을 때, 제대로 선택되었음을 확인
+                    if (selectNodeInMove.pieceInfo.GetOwner() == GameManager.Instance.turn)
+                    {
+                        moveState = MoveState.AfterPick;
+                        FindAllNodesCanMove(GameManager.Instance.turn, selectNodeInMove);
+                    }
+                }
+            }
+
+            //AfterPick: 피스를 움직일 공간을 누르는 단계
+            /**
+             * case 1: 빈 노드를 누르는 경우
+             *  - 3개 이하일때는 순간이동 가능
+             * case 2: 같은 팀의 피스를 누르는 경우
+             * case 3: 다른 팀의 피스를 누르는 경우
+             * */
+            else
+            {
+                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                RaycastHit hitInfo;
+                if (Physics.Raycast(ray, out hitInfo, 1000, nodeMask))
+                {
+                    Node selectNode = hitInfo.transform.GetComponent<Node>();
+
+                    //빈 노드일 경우
+                    if (selectNode.pieceInfo == null)
+                    {
+                        //3피스가 남아서 순간이동이 가능한 상태이거나, 연결된 노드일 경우 움직임
+                        if (GameManager.Instance.Is3PieceMove() || selectNodeInMove.linkedNodes.Contains(selectNode))
+                        {
+                            //피스가 3매치였을때, 3매치에 해당하는 보호 flag 비활성화
+                            Check3MatchManager.instance.Check3MatchAndDeleteFlag(selectNodeInMove);
+
+                            //피스이동
+                            Piece toMove = selectNodeInMove.currentPiece;
+                            selectNode.currentPiece = toMove;
+                            toMove.SetNode(selectNode);
+                            toMove.SetbMatch(false);
+                            toMove.transform.position = new Vector3(selectNode.transform.position.x, toMove.transform.position.y, selectNode.transform.position.z);
+                            selectNodeInMove.currentPiece = null;
+
+                            PieceInfo pieceInfo = selectNodeInMove.pieceInfo;
+                            selectNode.pieceInfo = pieceInfo;
+                            pieceInfo.SetNode(selectNode);
+                            pieceInfo.SetbMatch(false);
+                            selectNodeInMove.pieceInfo = null;
+
+                            //네트워크 로직
+                            int stIndex = 0, edIndex = 0;
+                            for(int i = 0; i < gameBoard.Count; i++)
+                            {
+                                if(selectNodeInMove == gameBoard[i])
+                                {
+                                    stIndex = i;
+                                }
+                                else if(selectNode == gameBoard[i])
+                                {
+                                    edIndex = i;
+                                }
+                            }
+
+                            NetMakeMove mm = new NetMakeMove();
+                            mm.startIndex = stIndex;
+                            mm.endIndex = edIndex;
+                            mm.removeIndex = -1;
+                            mm.gameState = 4;
+                            mm.teamId = GameManager.Instance.currentTeam;
+                            Client.instance.SendToServer(mm);
+
+                            //3매치가 되는지 확인, 되면 Delete State
+                            if (Check3MatchManager.instance.Check3Match(selectNode))
+                            {
+                                if (!FindAllNodesCanbeDelete(GameManager.Instance.turn))
+                                {
+                                    OnMoveEnd?.Invoke(this, selectNode);
+                                }
+                                else
+                                {
+                                    //3피스만 남아있다면, 3피스 움직임 횟수 초기화
+                                    GameManager.Instance.SetZeroOf3Moves(GameManager.Instance.turn);
+                                    OnDeletePieceStart?.Invoke(this, selectNode);
+                                    GameManager.Instance.SetState(GameManager.EGameState.Delete);
+                                }
+                            }
+                            else
+                            {
+                                OnMoveEnd?.Invoke(this, selectNode);
+                            }
+                        }
+                    }
+
+                    //다른 팀의 피스일 경우 선택초기화
+                    else if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
+                    {
+                        moveState = MoveState.BeforePick;
+                        selectNodeInMove = null;
+
+                        foreach (Node node in gameBoard)
+                        {
+                            node.DisableSelectObj();
+                        }
+                    }
+
+                    //같은 팀의 피스일 경우, 그 피스를 선택
+                    else if (selectNode.pieceInfo.GetOwner() == GameManager.Instance.turn)
+                    {
+                        selectNodeInMove = selectNode;
+                        FindAllNodesCanMove(GameManager.Instance.turn, selectNodeInMove);
+                    }
+
+                }
+            }
+        }
+    }
 
     private IEnumerator AIMovePiece()
     {
@@ -178,6 +319,51 @@ public class BoardManager : MonoBehaviour
         isAiStart = false;
     }
 
+    public void OnlineOpponentMovePiece(Move move)
+    {
+        Move bestMove = move;
+        Node startNode = gameBoard[bestMove.startIndex];
+        Node endNode = gameBoard[bestMove.endIndex];
+
+        //피스가 3매치였을때, 3매치에 해당하는 보호 flag 비활성화
+        Check3MatchManager.instance.Check3MatchAndDeleteFlag(startNode);
+
+        //피스이동
+        Piece toMove = startNode.currentPiece;
+        endNode.currentPiece = toMove;
+        toMove.SetNode(endNode);
+        toMove.SetbMatch(false);
+        toMove.transform.position = new Vector3(endNode.transform.position.x, toMove.transform.position.y, endNode.transform.position.z);
+        startNode.currentPiece = null;
+
+        PieceInfo pieceInfo = startNode.pieceInfo;
+        endNode.pieceInfo = pieceInfo;
+        pieceInfo.SetNode(endNode);
+        pieceInfo.SetbMatch(false);
+        startNode.pieceInfo = null;
+
+
+        //3매치가 되는지 확인, 되면 Delete State
+        if (Check3MatchManager.instance.Check3Match(endNode))
+        {
+            if (!FindAllNodesCanbeDelete(GameManager.Instance.turn))
+            {
+                OnMoveEnd?.Invoke(this, endNode);
+            }
+            else
+            {
+                //3피스만 남아있다면, 3피스 움직임 횟수 초기화
+                GameManager.Instance.SetZeroOf3Moves(GameManager.Instance.turn);
+                OnDeletePieceStart?.Invoke(this, endNode);
+                GameManager.Instance.SetState(GameManager.EGameState.Delete);
+            }
+        }
+        else
+        {
+            OnMoveEnd?.Invoke(this, endNode);
+        }
+    }
+
     //지울 상대의 피스가 있는지 확인, 없으면 Delete가 시작되지 않는다.
     //추가로 노드가 선택가능/불가능하다는 표식까지 띄운다
     private bool FindAllNodesCanbeDelete(bool turn)
@@ -216,7 +402,15 @@ public class BoardManager : MonoBehaviour
         //플레이어 턴일 시
         if (!isAiMove)
         {
-            PlayerPutPiece();
+            if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPNet)
+            {
+                OnlinePutPiece();
+            }
+
+            else if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPLocal)
+            {
+                PlayerPutPiece();
+            }
         }
 
         else
@@ -229,12 +423,94 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private IEnumerator AIPutPiece()
+    private void OnlinePutPiece()
     {
-        Node node = gameBoard[PutMinimax()];
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+            if (GameManager.Instance.turn && GameManager.Instance.currentTeam == 1) return;
+            if (!GameManager.Instance.turn && GameManager.Instance.currentTeam == 0) return;
 
-        float randomTime = UnityEngine.Random.Range(2, 3);
-        yield return new WaitForSeconds(randomTime);
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hitInfo;
+            if (Physics.Raycast(ray, out hitInfo))
+            {
+                if (hitInfo.transform.GetComponent<Node>() != null)
+                {
+                    Node node = hitInfo.transform.GetComponent<Node>();
+
+                    //해당 노드에 피스가 이미 있을 시 무시
+                    if (node.pieceInfo != null) return;
+
+                    Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.truePieceIndex) : GetCharacterPiece(GameManager.Instance.falsePieceIndex);
+
+                    //아니라면 피스를 생성하고 설정
+                    Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
+                    piece.GetComponent<Piece>().SetNode(node);
+                    node.currentPiece = piece.GetComponent<Piece>();
+
+                    PieceInfo pieceInfo = new PieceInfo();
+                    pieceInfo.SetNode(node);
+                    node.pieceInfo = pieceInfo;
+
+                    //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
+                    if (GameManager.Instance.turn)
+                    {
+                        piece.GetComponent<Piece>().SetOwnerToTrue();
+                        pieceInfo.SetOwnerToTrue();
+                        truePieceList.Add(pieceInfo);
+                    }
+                    else
+                    {
+                        piece.GetComponent<Piece>().SetOwnerToFalse();
+                        pieceInfo.SetOwnerToFalse();
+                        falsePieceList.Add(pieceInfo);
+                    }
+
+                    int index = 0;
+                    for(int i = 0; i < gameBoard.Count; i++)
+                    {
+                        if(node == gameBoard[i])
+                        {
+                            index = i; break;
+                        }
+                    }
+
+                    OnPutPiece?.Invoke(this, node);
+                    
+                    NetMakeMove mm = new NetMakeMove();
+                    mm.startIndex = -1;
+                    mm.endIndex = index;
+                    mm.removeIndex = -1;
+                    mm.gameState = 3;
+                    mm.teamId = GameManager.Instance.currentTeam;
+                    Client.instance.SendToServer(mm);
+
+                    //놓았을 때, 해당 노드와 연결된 3Match가 있는지 확인, 있으면 Delete 모드
+                    if (Check3MatchManager.instance.Check3Match(node))
+                    {
+                        if (!FindAllNodesCanbeDelete(GameManager.Instance.turn))
+                        {
+                            GameManager.Instance.ChangeTurn();
+                        }
+                        else
+                        {
+                            OnDeletePieceStart?.Invoke(this, node);
+                            GameManager.Instance.SetState(GameManager.EGameState.Delete);
+                        }
+                    }
+                    else
+                    {
+                        GameManager.Instance.ChangeTurn();
+                    }
+                }
+            }
+        }
+    }
+
+    public void OnlineOpponentPutPiece(Move move)
+    {
+        Node node = gameBoard[move.endIndex];
 
         //아니라면 피스를 생성하고 설정
         Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.truePieceIndex) : GetCharacterPiece(GameManager.Instance.falsePieceIndex);
@@ -279,6 +555,59 @@ public class BoardManager : MonoBehaviour
         {
             GameManager.Instance.ChangeTurn();
         }
+    }
+
+    private IEnumerator AIPutPiece()
+    {
+        Node node = gameBoard[PutMinimax()];
+
+        float randomTime = UnityEngine.Random.Range(2, 3);
+        yield return new WaitForSeconds(randomTime);
+
+        //아니라면 피스를 생성하고 설정
+        Transform pieceObj = GameManager.Instance.turn ? GetCharacterPiece(GameManager.Instance.truePieceIndex) : GetCharacterPiece(GameManager.Instance.falsePieceIndex);
+        Transform piece = Instantiate(pieceObj, new Vector3(node.transform.position.x, 0.3f, node.transform.position.z), Quaternion.identity);
+        piece.GetComponent<Piece>().SetNode(node);
+        node.currentPiece = piece.GetComponent<Piece>();
+
+        PieceInfo pieceInfo = new PieceInfo();
+        node.pieceInfo = pieceInfo;
+        pieceInfo.SetNode(node);
+
+        //턴이 누구인지에 따라 피스를 각각의 리스트에 넣는다.
+        if (GameManager.Instance.turn)
+        {
+            piece.GetComponent<Piece>().SetOwnerToTrue();
+            pieceInfo.SetOwnerToTrue();
+            truePieceList.Add(pieceInfo);
+        }
+        else
+        {
+            piece.GetComponent<Piece>().SetOwnerToFalse();
+            pieceInfo.SetOwnerToFalse();
+            falsePieceList.Add(pieceInfo);
+        }
+
+        OnPutPiece?.Invoke(this, node);
+
+
+        //놓았을 때, 해당 노드와 연결된 3Match가 있는지 확인, 있으면 Delete 모드
+        if (Check3MatchManager.instance.Check3Match(node))
+        {
+            if (!FindAllNodesCanbeDelete(GameManager.Instance.turn))
+            {
+                GameManager.Instance.ChangeTurn();
+            }
+            else
+            {
+                OnDeletePieceStart?.Invoke(this, node);
+                GameManager.Instance.SetState(GameManager.EGameState.Delete);
+            }
+        }
+        else
+        {
+            GameManager.Instance.ChangeTurn();
+        }
 
         isAiStart = false;
     }
@@ -289,7 +618,14 @@ public class BoardManager : MonoBehaviour
         //플레이어 턴일 시
         if (!isAiMove)
         {
-            PlayerDeletePiece();
+            if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPNet)
+            {
+                OnlineDeletePiece();
+            }
+            else if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPLocal)
+            {
+                PlayerDeletePiece();
+            }
         }
 
         else
@@ -298,6 +634,105 @@ public class BoardManager : MonoBehaviour
             {
                 StartCoroutine(AIDeletePiece());
                 isAiStart = true;
+            }
+        }
+    }
+
+    private void OnlineDeletePiece()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (EventSystem.current.IsPointerOverGameObject()) return;
+            if (GameManager.Instance.turn && GameManager.Instance.currentTeam == 1) return;
+            if (!GameManager.Instance.turn && GameManager.Instance.currentTeam == 0) return;
+
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hitInfo;
+            if (Physics.Raycast(ray, out hitInfo, 1000, nodeMask))
+            {
+                Node selectNode = hitInfo.transform.GetComponent<Node>();
+
+                //상대의 말을 제대로 골랐을 때,
+                if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
+                {
+                    //그 말이 3매치로 보호되지 않는다면 삭제
+                    if (!selectNode.pieceInfo.GetbMatch())
+                    {
+                        //턴의 반대 주인의 피스를 삭제
+                        if (GameManager.Instance.turn)
+                        {
+                            falsePieceList.Remove(selectNode.pieceInfo);
+                        }
+                        else
+                        {
+                            truePieceList.Remove(selectNode.pieceInfo);
+                        }
+
+                        selectNode.pieceInfo.SetNode(null);
+                        DestroyImmediate(selectNode.currentPiece.gameObject);
+                        selectNode.currentPiece = null;
+                        selectNode.pieceInfo = null;
+
+                        int index = 0;
+                        for(int i = 0; i < gameBoard.Count; i++)
+                        {
+                            if(selectNode == gameBoard[i])
+                            {
+                                index = i; break;   
+                            }
+                        }
+
+                        NetMakeMove mm = new NetMakeMove();
+                        mm.startIndex = -1;
+                        mm.endIndex = -1;
+                        mm.removeIndex = index;
+                        mm.gameState = 5;
+                        mm.teamId = GameManager.Instance.currentTeam;
+                        Client.instance.SendToServer(mm);
+
+                        OnDeletePieceEnd?.Invoke(this, new DeletePieceEventArgs
+                        {
+                            turn = GameManager.Instance.turn,
+                            deleteNode = selectNode,
+                        });
+                    }
+                }
+            }
+        }
+
+    }
+
+    public void OnlineOpponentDeletePiece(Move move)
+    {
+        //Put 또는 Move 단계에서 정했던 index의 노드를 고른다.
+        Node selectNode = gameBoard[move.removeIndex];
+
+        //상대의 말을 제대로 골랐을 때,
+        if (selectNode.pieceInfo.GetOwner() != GameManager.Instance.turn)
+        {
+            //그 말이 3매치로 보호되지 않는다면 삭제
+            if (!selectNode.pieceInfo.GetbMatch())
+            {
+                //턴의 반대 주인의 피스를 삭제
+                if (GameManager.Instance.turn)
+                {
+                    falsePieceList.Remove(selectNode.pieceInfo);
+                }
+                else
+                {
+                    truePieceList.Remove(selectNode.pieceInfo);
+                }
+
+                DestroyImmediate(selectNode.currentPiece.gameObject);
+                selectNode.pieceInfo.SetNode(null);
+                selectNode.pieceInfo = null;
+                selectNode.currentPiece = null;
+
+                OnDeletePieceEnd?.Invoke(this, new DeletePieceEventArgs
+                {
+                    turn = GameManager.Instance.turn,
+                    deleteNode = selectNode,
+                });
             }
         }
     }

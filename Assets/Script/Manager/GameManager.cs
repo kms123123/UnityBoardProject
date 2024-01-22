@@ -3,6 +3,7 @@ using System.Collections;
 using Unity.Networking.Transport;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -34,15 +35,15 @@ public class GameManager : MonoBehaviour
 
     public bool isAiMode;
 
-    public UserInfo player1UserInfo;
-    public UserInfo player2UserInfo;
-
     public int truePieceIndex;
     public int falsePieceIndex;
 
     // Multi Logic
     private int playerCount = -1;
-    private int currentTeam = -1;
+    public int currentTeam = -1;
+    private bool[] playerRematch = new bool[2];
+    [SerializeField] GameObject rematchIndicatorObj;
+    [SerializeField] Button rematchButton;
 
     private void Awake()
     {
@@ -151,11 +152,13 @@ public class GameManager : MonoBehaviour
         turnFalseHavetoPut = 9;
         turnTrue3PiecesMoves = 0;
         turnFalse3PiecesMoves = 0;
+        playerRematch[0] = playerRematch[1] = false;
 
         //Todo: 보드초기화, UI 활성화 및 초기화 필요
         /**
          * BoardManager: 보드 초기화
          * CameraController: 카메라 위치 초기화
+         * UIManager: 턴, 정보 창 활성화
          * */
         OnGameStart?.Invoke(this, EventArgs.Empty);
             
@@ -311,7 +314,17 @@ public class GameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        state = EGameState.Start;
+        if (gameMode != EGameMode.PVPNet)
+        {
+            state = EGameState.Start;
+        }
+        else
+        {
+            NetRematch rm = new NetRematch();
+            rm.teamId = currentTeam;
+            rm.wantRematch = 1;
+            Client.instance.SendToServer(rm);
+        }
     }
 
     public void ExitGame()
@@ -319,6 +332,23 @@ public class GameManager : MonoBehaviour
         state = EGameState.Ready;
         WorldUIManager.instance.StopAllWorldCameraAndCanvas();
         WorldUIManager.instance.GoToMainCanvas();
+
+        if(gameMode == EGameMode.PVPNet)
+        {
+            NetRematch rm = new NetRematch();
+            rm.teamId = currentTeam;
+            rm.wantRematch = 0;
+            Client.instance.SendToServer(rm);
+
+            Invoke("ShutDownRelay", 1f);
+
+            playerCount = -1;
+            currentTeam = -1;
+
+            rematchButton.interactable = true;
+            rematchIndicatorObj.transform.GetChild(0).gameObject.SetActive(false);
+            rematchIndicatorObj.transform.GetChild(1).gameObject.SetActive(false);
+        }
     }
 
     public void OnOnlineHostButton()
@@ -336,26 +366,38 @@ public class GameManager : MonoBehaviour
     {
         server.ShutDown();
         client.ShutDown();
+        playerCount = -1;
+        currentTeam = -1;
+    }
+
+    private void OnApplicationQuit()
+    {
+        server.ShutDown();
+        client.ShutDown();
     }
 
     private void RegisterEvents()
     {
         NetUtility.S_WELCOME += OnWelcomeServer;
         NetUtility.S_MAKE_MOVE += OnMakeMoveServer;
+        NetUtility.S_REMATCH += OnRematchServer;
 
         NetUtility.C_WELCOME += OnWelcomeClient;
         NetUtility.C_START_GAME += OnStartGameClient;
         NetUtility.C_MAKE_MOVE += OnMakeMoveClient;
+        NetUtility.C_REMATCH += OnRematchClient;
     }
 
     private void UnRegisterEvents()
     {
         NetUtility.S_WELCOME -= OnWelcomeServer;
         NetUtility.S_MAKE_MOVE -= OnMakeMoveServer;
+        NetUtility.S_REMATCH -= OnRematchServer;
 
         NetUtility.C_WELCOME -= OnWelcomeClient;
         NetUtility.C_START_GAME -= OnStartGameClient;
         NetUtility.C_MAKE_MOVE -= OnMakeMoveClient;
+        NetUtility.C_REMATCH -= OnRematchClient;
     }
 
     private void OnWelcomeServer(NetMessage msg, NetworkConnection cnn)
@@ -406,6 +448,40 @@ public class GameManager : MonoBehaviour
         Server.instance.BroadCast(mm);
     }
 
+    private void OnRematchServer(NetMessage msg, NetworkConnection cnn)
+    {
+        Server.instance.BroadCast(msg);
+    }
+
+    private void OnRematchClient(NetMessage msg)
+    {
+        // Receive the Connection Message
+        NetRematch rm = msg as NetRematch;
+
+        // Set the boolean for rematch
+        playerRematch[rm.teamId] = rm.wantRematch == 1;
+
+        // Activate the piece of UI
+        if(rm.teamId != currentTeam)
+        {
+            rematchIndicatorObj.transform.GetChild((rm.wantRematch == 1) ? 0 : 1).gameObject.SetActive(true);
+            if(rm.wantRematch != 1)
+            {
+                rematchButton.interactable = false;
+            }
+        }
+
+        // If both wants to rematch
+        if (playerRematch[0] && playerRematch[1])
+        {
+            state = EGameState.Start;
+            rematchButton.interactable = true;
+            rematchIndicatorObj.transform.GetChild(0).gameObject.SetActive(false);
+            rematchIndicatorObj.transform.GetChild(1).gameObject.SetActive(false);
+        }
+
+    }
+
     private void OnMakeMoveClient(NetMessage msg)
     {
         NetMakeMove mm = msg as NetMakeMove;
@@ -414,8 +490,33 @@ public class GameManager : MonoBehaviour
 
         if(mm.teamId != currentTeam)
         {
-            //MoveTo 로직
+            //Put 로직
+            if(mm.gameState == 3)
+            {
+                Move move = new Move(mm.startIndex, mm.endIndex, mm.removeIndex, EGameState.Putting);
+                BoardManager.instance.OnlineOpponentPutPiece(move);
+            }
+
+            //Move 로직
+            else if(mm.gameState == 4)
+            {
+                Move move = new Move(mm.startIndex, mm.endIndex, mm.removeIndex, EGameState.Move);
+                BoardManager.instance.OnlineOpponentMovePiece(move);
+            }
+
+            //Delete 로직
+            else if(mm.gameState == 5)
+            {
+                Move move = new Move(mm.startIndex, mm.endIndex, mm.removeIndex, EGameState.Delete);
+                BoardManager.instance.OnlineOpponentDeletePiece(move);
+            }
         }
+    }
+
+    private void ShutDownRelay()
+    {
+        Client.instance.ShutDown();
+        Server.instance.ShutDown();
     }
 }
 

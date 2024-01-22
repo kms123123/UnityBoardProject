@@ -58,7 +58,28 @@ public class TurnUI : MonoBehaviour
                 }
                 break;
             case GameManager.EGameMode.PVPNet:
-                //Todo: 네트워크 관련 로직 설정 후 텍스트 설정 필요
+                if(GameManager.Instance.turn)
+                {
+                    if(GameManager.Instance.currentTeam == 0)
+                    {
+                        whosTurnText.text = currentTextData.myText;
+                    }
+                    else
+                    {
+                        whosTurnText.text = currentTextData.opponentText;
+                    }
+                }
+                else
+                {
+                    if (GameManager.Instance.currentTeam == 0)
+                    {
+                        whosTurnText.text = currentTextData.opponentText;
+                    }
+                    else
+                    {
+                        whosTurnText.text = currentTextData.myText;
+                    }
+                }
                 break;
         }
     }

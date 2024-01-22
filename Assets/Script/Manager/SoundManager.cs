@@ -9,7 +9,8 @@ public class SoundManager : MonoBehaviour
 
     [SerializeField] private AudioSource[] sfx;
     [SerializeField] private AudioSource[] bgm;
-    
+    public int currentBgmIndex = 3;
+
     private void Awake()
     {
         if (instance != null) instance = this;
@@ -23,6 +24,17 @@ public class SoundManager : MonoBehaviour
         BoardManager.instance.OnMoveEnd += SoundManager_OnMoveEnd;
         BoardManager.instance.OnPutPiece += SoundManager_OnPutPiece;
         BoardManager.instance.OnDeletePieceStart += SoundManager_OnDeletePieceStart;
+        GameManager.Instance.OnGameStart += SoundManager_OnGameStart;
+    }
+
+    private void SoundManager_OnGameStart(object sender, EventArgs e)
+    {
+        int number = UnityEngine.Random.Range(0, 4);
+        if (number == currentBgmIndex) return;
+
+        currentBgmIndex = number;
+        StopAllBGM();
+        PlayBGM(number);
     }
 
     private void SoundManager_OnDeletePieceStart(object sender, Node e)

@@ -75,7 +75,29 @@ public class UIManager : MonoBehaviour
         resultWindowUIObject.SetActive(true);
         if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPNet)
         {
-            //Todo: 네트워크 로직 짠 이후 해야함
+            if(GameManager.Instance.currentTeam == 0)
+            {
+                if(turn)
+                {
+                    resultText.text = resultTextDataKor.myText;
+                }
+                else
+                {
+                    resultText.text = resultTextDataKor.opponentText;
+                }
+            }
+
+            else
+            {
+                if (turn)
+                {
+                    resultText.text = resultTextDataKor.opponentText;
+                }
+                else
+                {
+                    resultText.text = resultTextDataKor.myText;
+                }
+            }
         }
         else if(GameManager.Instance.gameMode == GameManager.EGameMode.PVPLocal)
         {
